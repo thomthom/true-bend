@@ -1,0 +1,19 @@
+{
+  "name": "True Bend",
+  "description": "",
+  "namespace": "TT::Plugins::TrueBend",
+  "basename": "tt_truebend",
+  "author": "Unknown",
+  "copyright": "Copyright (c) 2017",
+  "license": "None",
+  "sources": [
+    "github.com",
+    "bitbucket.org"
+  ],
+  "libraries": [
+
+  ],
+  "modules": [
+
+  ]
+}
