@@ -1,9 +1,12 @@
 require 'tt_truebend/constants/view'
+require 'tt_truebend/gl/drawing_helper'
+require 'tt_truebend/gl/grid'
 require 'tt_truebend/geom/segment'
 
 module TT::Plugins::TrueBend
   class Bender
 
+    include DrawingHelper
     include ViewConstants
 
     attr_reader :segment
@@ -14,6 +17,11 @@ module TT::Plugins::TrueBend
       @angle = 0.0
       @segment = segment
       @segmenter = SubdividedSegmentWidget.new(segment, color: 'green')
+
+      bounds = instance.definition.bounds
+      @grid = Grid.new(bounds.width, bounds.height)
+      @grid.x_subdivs = @segmenter.subdivisions
+      @grid.transformation = instance.transformation
     end
 
     def reset
@@ -105,7 +113,7 @@ module TT::Plugins::TrueBend
         }
 
         mid = @segmenter.segment.mid_point
-        origin = mid.offset(@direction, radius)
+        # origin = mid.offset(@direction, radius)
 
         view.line_stipple = STIPPLE_SOLID
         view.line_width = 1
@@ -115,9 +123,13 @@ module TT::Plugins::TrueBend
         view.drawing_color = 'purple'
         view.draw(GL_LINES, [mid, origin])
 
-        view.line_stipple = STIPPLE_LONG_DASH
         view.drawing_color = 'purple'
-        view.draw(GL_LINE_STRIP, [reference_points.first, origin, reference_points.last])
+        view.line_stipple = STIPPLE_LONG_DASH
+        # view.draw(GL_LINE_STRIP, [reference_points.first, origin, reference_points.last])
+        view.line_width = 2
+        view.draw(GL_LINES, [origin, reference_points.first])
+        view.line_width = 1
+        view.draw(GL_LINES, [origin, reference_points.last])
 
         # Radius
         pt = view.screen_coords(Segment.new(mid, origin).mid_point)
@@ -141,6 +153,75 @@ module TT::Plugins::TrueBend
         pt = view.screen_coords(@segment.points.last)
         options[:color] = 'green'
         view.draw_text(pt, @segment.length.to_s, options)
+      end
+
+      # view.drawing_color = 'maroon'
+      # @grid.draw(view)
+
+      if @direction.valid?
+        ref_grid = @grid.segments.map(&:points).flatten
+        view.line_stipple = STIPPLE_LONG_DASH
+        view.line_width = 1
+        view.drawing_color = 'green'
+        view.draw(GL_LINES, lift(view, ref_grid))
+
+        # TODO: Refactor into a Projection class.
+        #       - Convert points to polar coordinates projection.
+        #       - Snap points to segmented polar coordinates.
+
+        # segment_length = @segment.length
+        # mid = @segmenter.segment.mid_point
+        # polar_angle = origin.vector_to(reference_points.first)
+
+        bounds = @instance.definition.bounds
+        w = bounds.width * X_AXIS.transform(@instance.transformation).length
+        h = bounds.height * Y_AXIS.transform(@instance.transformation).length
+        grid = Grid.new(w, h)
+        # grid = Grid.new(bounds.width, bounds.height)
+        # grid = Grid.new(@segment.length, bounds.height)
+        grid.x_subdivs = @segmenter.subdivisions
+        ref_grid = grid.segments.map(&:points).flatten
+
+        # p @segment
+        # p @segmenter.points
+
+        # r = origin.vector_to(@segment.mid_point)
+        # r.transform!(@instance.transformation.inverse)
+        # r = r.length
+        to_local = @instance.transformation.inverse
+        local_radius = Segment.new(origin, @segment.mid_point).transform!(to_local)
+        r = local_radius.length
+        r = radius
+
+        # r = radius
+        c = Math::PI * (r * 2) # circumference
+        pi2 = Math::PI * 2
+        arc_grid = ref_grid.map { |pt|
+          # https://www.mathsisfun.com/polar-cartesian-coordinates.html
+          # To Convert from Polar to Cartesian
+          # r = radius + pt.y # polar_y
+          # radius = origin.vector_to(@segment.mid_point)
+          # radius.transform!(@instance.transformation.inverse)
+          # r = radius.length + pt.y # polar_y
+          # c = Math::PI * (r * 2) # circumference
+          a = pi2 * (pt.x / c) # polar_x
+          # a = pi2 - a
+          x = r * Math.cos(a)
+          y = r * Math.sin(a)
+          projection = Geom::Vector3d.new(x, y, 0)
+          ORIGIN.offset(projection, r + pt.y)
+        }
+        x_axis = origin.vector_to(reference_points.first)
+        y_axis = x_axis * Z_AXIS
+        # y_axis.reverse! if y_axis % Y_AXIS < 0
+        # y_axis.reverse! if (x_axis * y_axis) % Z_AXIS < 0
+        y_axis.reverse! if @direction.y < 0
+        to_world = Geom::Transformation.axes(origin, x_axis, y_axis)
+        arc_grid.each { |pt| pt.transform!(to_world) }
+        view.line_stipple = STIPPLE_LONG_DASH
+        view.line_width = 1
+        view.drawing_color = 'red'
+        view.draw(GL_LINES, lift(view, arc_grid))
       end
     end
 

@@ -62,6 +62,7 @@ module TT::Plugins::TrueBend
     def draw(view)
       points = handle_points(view)
       if @mouse_down_position && @direction && @direction.valid?
+      # if @direction && @direction.valid?
         points.last.offset!(@direction)
       end
 
