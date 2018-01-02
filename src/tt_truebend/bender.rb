@@ -124,10 +124,10 @@ module TT::Plugins::TrueBend
         grid = Grid.new(bounds.width, bounds.height)
         grid.x_subdivs = @segmenter.subdivisions
 
-        x_axis = origin.vector_to(polar_points.first)
+        x_axis = origin.vector_to(polar_points.last)
         projection = PolarProjection.new(radius)
-        projection.axes(origin, x_axis, convex?)
-        arc_grid = projection.project(grid.segment_points)
+        projection.axes(origin, x_axis)
+        arc_grid = projection.project(grid.segment_points, convex?)
 
         view.line_stipple = STIPPLE_LONG_DASH
         view.line_width = 1
@@ -147,7 +147,7 @@ module TT::Plugins::TrueBend
           slicer.add_plane(plane)
         }
         mesh_points = slicer.segment_points
-        bent_mesh = projection.project(mesh_points)
+        bent_mesh = projection.project(mesh_points, convex?)
         view.line_stipple = STIPPLE_SOLID
         view.line_width = 2
         view.drawing_color = 'maroon'

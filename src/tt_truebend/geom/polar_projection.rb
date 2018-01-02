@@ -16,24 +16,22 @@ module TT::Plugins::TrueBend
     end
 
     # Sets the target transformation based on orgin and x-axis.
-    def axes(origin, x_axis, convex)
+    def axes(origin, x_axis)
       y_axis = x_axis.axes.x
       z_axis = x_axis.axes.y
-      if convex
-        # x_axis.reverse!
-        y_axis.reverse!
-        # z_axis.reverse!
-      end
       @transformation = Geom::Transformation.axes(origin, x_axis, y_axis, z_axis)
       nil
     end
 
-    def project(points)
+    def project(points, convex)
+      tr = convex ? Geom::Transformation.scaling(1, -1, 1) :
+                    Geom::Transformation.scaling(-1, 1, 1)
       circumference = Math::PI * (radius * 2)
       projected = points.map { |point|
         # Map the X coordinate to an angular value in the Polar coordinate
         # system. The circumference at `radius` (Y=0) is considered the target
         # range for the X coordinate.
+        point = point.transform(tr)
         angle = PI2 * (point.x / circumference)
         x = (radius + point.y) * Math.cos(angle)
         y = (radius + point.y) * Math.sin(angle)
