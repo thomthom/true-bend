@@ -38,18 +38,14 @@ module TT::Plugins::TrueBend
     end
 
     def segments
-      # solid = []
-      # stippled = []
-      # [x_segments, y_segments].each { |n_segments|
-      #   solid << n_segments.pop
-      #   solid << n_segments.shift
-      #   stippled.concat(n_segments)
-      # }
-      # [solid, stippled]
       [x_segments, y_segments].flatten
     end
 
-    # private
+    def segment_points
+      segments.map(&:points).flatten
+    end
+
+    private
 
     def x_grid_segments
       y_step = @height / y_subdivs

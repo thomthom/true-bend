@@ -18,6 +18,18 @@ module TT::Plugins::TrueBend
       @instance.bounds
     end
 
+    def width
+      local_bounds.width * X_AXIS.transform(@instance.transformation).length
+    end
+
+    def height
+      local_bounds.height * Y_AXIS.transform(@instance.transformation).length
+    end
+
+    def depth
+      local_bounds.depth * Z_AXIS.transform(@instance.transformation).length
+    end
+
     def polygon(index)
       polygon = local_bounds.polygon(index)
       polygon.transform!(@instance.transformation)
