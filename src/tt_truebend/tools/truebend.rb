@@ -63,18 +63,23 @@ module TT::Plugins::TrueBend
 
     def onUserText(text, view)
       unless text.match(/^[0-9.,;:]+$/)
+        # If there are non-numeric characters - check if they have special
+        # meaning.
         if text.end_with?('s')
+          # Adjust subdivisions.
           @bender.subdivisions = text.to_i
-          update_ui
-          view.invalidate
           return
         else
+          # Switch adjustment unit.
           @bend_by_distance = !text.end_with?('deg')
         end
       end
-      p ['bend_by_distance', @bend_by_distance]
+      # Adjust the last value.
+      # TODO: Make additional check to see if any value can be adjusted.
+      #       Don't trust enableVCB? to be fully up to date.
       begin
         if bend_by_distance?
+          # TODO: Clean up this.
           d = @bender.direction.clone
           d.length = text.to_l
           @bender.bend(d)
@@ -88,7 +93,7 @@ module TT::Plugins::TrueBend
         return
       end
       @manipulator.distance = @bender.distance
-    # ensure
+    ensure
       update_ui
       view.invalidate
     end

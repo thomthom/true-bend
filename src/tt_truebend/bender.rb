@@ -71,6 +71,7 @@ module TT::Plugins::TrueBend
     end
 
     def angle=(value)
+      # TODO: Update direction length?
       @angle = value
     end
 
