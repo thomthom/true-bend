@@ -19,15 +19,15 @@ module TT::Plugins::TrueBend
     end
 
     def width
-      local_bounds.width * X_AXIS.transform(@instance.transformation).length
+      (local_bounds.width * scale_x).to_l
     end
 
     def height
-      local_bounds.height * Y_AXIS.transform(@instance.transformation).length
+      (local_bounds.height * scale_y).to_l
     end
 
     def depth
-      local_bounds.depth * Z_AXIS.transform(@instance.transformation).length
+      (local_bounds.depth * scale_z).to_l
     end
 
     def polygon(index)
@@ -40,6 +40,22 @@ module TT::Plugins::TrueBend
       local_bounds.polygons.map { |polygon|
         polygon.transform!(@instance.transformation)
       }
+    end
+
+    def scaling_transformation
+      Geom::Transformation.scaling(scale_x, scale_y, scale_z)
+    end
+
+    def scale_x
+      X_AXIS.transform(@instance.transformation).length.to_f
+    end
+
+    def scale_y
+      Y_AXIS.transform(@instance.transformation).length.to_f
+    end
+
+    def scale_z
+      Z_AXIS.transform(@instance.transformation).length.to_f
     end
 
     def segments

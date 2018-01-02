@@ -2,6 +2,7 @@ require 'tt_truebend/constants/view'
 require 'tt_truebend/gl/boundingbox'
 require 'tt_truebend/gl/drawing_helper'
 require 'tt_truebend/gl/grid'
+require 'tt_truebend/gl/slicer'
 require 'tt_truebend/gl/subdivided_segment'
 require 'tt_truebend/geom/polar_projection'
 require 'tt_truebend/geom/segment'
@@ -118,6 +119,7 @@ module TT::Plugins::TrueBend
 
       # Projected grid
       if @direction.valid?
+        # Grid
         bounds = BoundingBoxWidget.new(@instance)
         grid = Grid.new(bounds.width, bounds.height)
         grid.x_subdivs = @segmenter.subdivisions
@@ -131,6 +133,27 @@ module TT::Plugins::TrueBend
         view.line_width = 1
         view.drawing_color = 'red'
         view.draw(GL_LINES, lift(view, arc_grid))
+
+        # Mesh
+        to_scaled = bounds.scaling_transformation
+        to_local = @instance.transformation.inverse
+        to_polar = to_scaled * to_local
+        plane_normal = @segment.line[1].transform(to_polar)
+        slicer = Slicer.new(@instance)
+        slicer.transformation = to_scaled
+        @segmenter.points.each { |point|
+          plane_origin = point.transform(to_polar)
+          plane = [plane_origin, plane_normal]
+          slicer.add_plane(plane)
+        }
+        mesh_points = slicer.segment_points
+        bent_mesh = projection.project(mesh_points)
+        view.line_stipple = STIPPLE_SOLID
+        view.line_width = 2
+        view.drawing_color = 'maroon'
+        view.draw(GL_LINES, bent_mesh)
+        view.draw_points(bent_mesh, 6, DRAW_FILLED_SQUARE, 'maroon')
+        # slicer.draw(view)
       end
 
       # Debug

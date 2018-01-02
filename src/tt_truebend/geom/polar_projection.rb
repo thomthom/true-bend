@@ -18,8 +18,13 @@ module TT::Plugins::TrueBend
     # Sets the target transformation based on orgin and x-axis.
     def axes(origin, x_axis, convex)
       y_axis = x_axis.axes.x
-      y_axis.reverse! if convex
-      @transformation = Geom::Transformation.axes(origin, x_axis, y_axis)
+      z_axis = x_axis.axes.y
+      if convex
+        # x_axis.reverse!
+        y_axis.reverse!
+        # z_axis.reverse!
+      end
+      @transformation = Geom::Transformation.axes(origin, x_axis, y_axis, z_axis)
       nil
     end
 
@@ -32,7 +37,7 @@ module TT::Plugins::TrueBend
         angle = PI2 * (point.x / circumference)
         x = (radius + point.y) * Math.cos(angle)
         y = (radius + point.y) * Math.sin(angle)
-        Geom::Point3d.new(x, y, 0)
+        Geom::Point3d.new(x, y, point.z)
       }
       projected.each { |pt| pt.transform!(@transformation) } if @transformation
       projected
