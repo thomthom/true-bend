@@ -13,7 +13,7 @@ module TT::Plugins::TrueBend
     include DrawingHelper
     include ViewConstants
 
-    attr_reader :segment
+    attr_reader :segment, :direction
 
     def initialize(instance, segment, normal)
       @instance = instance
@@ -22,6 +22,7 @@ module TT::Plugins::TrueBend
       @angle = 0.0
       @segment = segment
       @segmenter = SubdividedSegmentWidget.new(segment, color: 'green')
+      @segmenter.subdivisions = 24
 
       bounds = instance.definition.bounds
       @grid = Grid.new(bounds.width, bounds.height)
@@ -42,6 +43,14 @@ module TT::Plugins::TrueBend
       !concave?
     end
 
+    def subdivisions
+      @segmenter.subdivisions
+    end
+
+    def subdivisions=(value)
+      @segmenter.subdivisions = value
+    end
+
     # @param [Geom::Vector3d] direction
     def bend(direction)
       @direction = direction
@@ -53,7 +62,7 @@ module TT::Plugins::TrueBend
     end
 
     def distance
-      radius * (1 - Math.cos(angle / 2))
+      (radius * (1 - Math.cos(angle / 2))).to_l
     end
 
     def angle
@@ -71,7 +80,7 @@ module TT::Plugins::TrueBend
 
     def chord
       # http://mathworld.wolfram.com/CircularSegment.html
-      2 * radius * Math.sin(0.5 * angle)
+      (2 * radius * Math.sin(0.5 * angle)).to_l
     end
 
     def sagitta
@@ -79,7 +88,7 @@ module TT::Plugins::TrueBend
       # https://en.wikipedia.org/wiki/Circular_segment
       # h = R(1 - cos(a/2))
       #     R - sqrt(R^2 - (c^2/4))
-      radius * (1 - Math.cos(angle / 2))
+      (radius * (1 - Math.cos(angle / 2))).to_l
     end
 
     def arc_length

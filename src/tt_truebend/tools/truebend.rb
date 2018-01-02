@@ -62,17 +62,33 @@ module TT::Plugins::TrueBend
     end
 
     def onUserText(text, view)
-      # if bend_by_distance?
-      #   @bender.distance = text.to_l
-      # else
-      #   @bender.angle = text.to_f
-      # end
-      @bender.angle = text.to_f
+      unless text.match(/^[0-9.,;:]+$/)
+        if text.end_with?('s')
+          @bender.subdivisions = text.to_i
+          update_ui
+          view.invalidate
+          return
+        else
+          @bend_by_distance = !text.end_with?('deg')
+        end
+      end
+      p ['bend_by_distance', @bend_by_distance]
+      begin
+        if bend_by_distance?
+          d = @bender.direction.clone
+          d.length = text.to_l
+          @bender.bend(d)
+          # @bender.distance = text.to_l
+        else
+          @bender.angle = text.to_f.degrees
+        end
+      rescue ArgumentError => error
+        # TODO: Don't emit error message directly to user.
+        UI.messagebox(error.message)
+        return
+      end
       @manipulator.distance = @bender.distance
-    rescue ArgumentError, error
-      # TODO: Don't emit error message directly to user.
-      UI.messagebox(error.message)
-    ensure
+    # ensure
       update_ui
       view.invalidate
     end
@@ -119,20 +135,20 @@ module TT::Plugins::TrueBend
     def update_ui
       if @manipulator.drag?
         Sketchup.status_text = 'Drag to adjust the amount of bend.'
-        Sketchup.vcb_label = 'Distance'
-        Sketchup.vcb_value = @manipulator.distance
+        # Sketchup.vcb_label = 'Distance'
+        # Sketchup.vcb_value = @manipulator.distance
       else
         Sketchup.status_text = 'Pick a handle to start bending the instance.'
         Sketchup.vcb_label = 'Distance'
         # Sketchup.vcb_value = @bender.distance
       end
-      # if bend_by_distance?
-      #   Sketchup.vcb_label = 'Distance'
-      #   Sketchup.vcb_value = @bender.distance
-      # else
-      #   Sketchup.vcb_label = 'Angle'
-      #   Sketchup.vcb_value = @bender.angle
-      # end
+      if bend_by_distance?
+        Sketchup.vcb_label = 'Distance'
+        Sketchup.vcb_value = @bender.distance
+      else
+        Sketchup.vcb_label = 'Angle'
+        Sketchup.vcb_value = Sketchup.format_angle(@bender.angle)
+      end
       # Sketchup.vcb_label = 'Angle'
       # Sketchup.vcb_value = @bender.angle
     end

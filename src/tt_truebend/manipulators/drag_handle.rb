@@ -39,8 +39,7 @@ module TT::Plugins::TrueBend
     end
 
     def can_adjust?
-      # !@direction.nil?
-      false
+      @direction.valid?
     end
 
     def drag?
@@ -49,6 +48,10 @@ module TT::Plugins::TrueBend
 
     def distance
       @direction.length
+    end
+
+    def distance=(value)
+      @direction.length = value
     end
 
     def bounds
