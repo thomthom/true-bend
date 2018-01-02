@@ -14,8 +14,9 @@ module TT::Plugins::TrueBend
 
     attr_reader :segment
 
-    def initialize(instance, segment)
+    def initialize(instance, segment, normal)
       @instance = instance
+      @normal = normal
       @direction = Geom::Vector3d.new(0, 0, 0)
       @angle = 0.0
       @segment = segment
@@ -30,6 +31,14 @@ module TT::Plugins::TrueBend
     def reset
       @direction = Geom::Vector3d.new(0, 0, 0)
       @angle = 0.0
+    end
+
+    def concave?
+      @direction.samedirection?(@normal)
+    end
+
+    def convex?
+      !concave?
     end
 
     # @param [Geom::Vector3d] direction
@@ -92,19 +101,43 @@ module TT::Plugins::TrueBend
     end
 
     def draw(view)
+      # Reference segment
       @segmenter.draw(view)
 
-      reference_points = bend_points(@segmenter.points)
+      # Projected reference segment
+      polar_points = bend_points(@segmenter.points)
       view.line_stipple = STIPPLE_SOLID
       view.line_width = @segmenter.line_width
       view.drawing_color = 'red'
-      view.draw(GL_LINE_STRIP, reference_points)
+      view.draw(GL_LINE_STRIP, polar_points)
+      view.draw_points(polar_points, 6, DRAW_FILLED_SQUARE, 'red')
 
-      view.draw_points(reference_points, 6, DRAW_FILLED_SQUARE, 'red')
+      # Reference grid
+      view.drawing_color = 'green'
+      @grid.draw(view)
+
+      # Projected grid
+      if @direction.valid?
+        bounds = BoundingBoxWidget.new(@instance)
+        grid = Grid.new(bounds.width, bounds.height)
+        grid.x_subdivs = @segmenter.subdivisions
+
+        x_axis = origin.vector_to(polar_points.first)
+        projection = PolarProjection.new(radius)
+        projection.axes(origin, x_axis, convex?)
+        arc_grid = projection.project(grid.segment_points)
+
+        view.line_stipple = STIPPLE_LONG_DASH
+        view.line_width = 1
+        view.drawing_color = 'red'
+        view.draw(GL_LINES, lift(view, arc_grid))
+      end
+
+      # Debug
 
       if @direction.valid?
-        # p [@segment, @segment.length]
-        length = curve_length(reference_points)
+        # Information
+        length = curve_length(polar_points)
         degrees = Sketchup.format_angle(angle)
         view.tooltip = "Radius: #{radius}\nAngle: #{degrees}\nLength: #{@segment.length} (#{length})"
 
@@ -116,8 +149,8 @@ module TT::Plugins::TrueBend
         }
 
         mid = @segmenter.segment.mid_point
-        # origin = mid.offset(@direction, radius)
 
+        # Radius segment
         view.line_stipple = STIPPLE_SOLID
         view.line_width = 1
         view.draw_points([mid, origin], 6, DRAW_CROSS, 'purple')
@@ -126,29 +159,28 @@ module TT::Plugins::TrueBend
         view.drawing_color = 'purple'
         view.draw(GL_LINES, [mid, origin])
 
+        # Pie end segments
         view.drawing_color = 'purple'
         view.line_stipple = STIPPLE_LONG_DASH
-        # view.draw(GL_LINE_STRIP, [reference_points.first, origin, reference_points.last])
         view.line_width = 2
-        view.draw(GL_LINES, [origin, reference_points.first])
+        view.draw(GL_LINES, [origin, polar_points.first])
         view.line_width = 1
-        view.draw(GL_LINES, [origin, reference_points.last])
+        view.draw(GL_LINES, [origin, polar_points.last])
 
         # Radius
         pt = view.screen_coords(Segment.new(mid, origin).mid_point)
         view.draw_text(pt, radius.to_s, options)
 
         # Angle
-        v1 = origin.vector_to(reference_points.first)
-        v2 = origin.vector_to(reference_points.last)
-        # a = v1.angle_between(v2)
+        v1 = origin.vector_to(polar_points.first)
+        v2 = origin.vector_to(polar_points.last)
         a = full_angle_between(v1, v2)
         fa = Sketchup.format_angle(a)
         pt = view.screen_coords(origin)
         view.draw_text(pt, "#{fa}° (#{degrees}°)", options)
 
         # Curve Length
-        pt = view.screen_coords(reference_points.first)
+        pt = view.screen_coords(polar_points.first)
         options[:color] = 'red'
         view.draw_text(pt, "#{length} (#{arc_length})", options)
 
@@ -157,39 +189,6 @@ module TT::Plugins::TrueBend
         options[:color] = 'green'
         view.draw_text(pt, @segment.length.to_s, options)
       end
-
-      # view.drawing_color = 'maroon'
-      # @grid.draw(view)
-
-      if @direction.valid?
-        reference_grid = @grid.segments.map(&:points).flatten
-        view.line_stipple = STIPPLE_LONG_DASH
-        view.line_width = 1
-        view.drawing_color = 'green'
-        view.draw(GL_LINES, lift(view, reference_grid))
-
-        # TODO: Refactor into a Projection class.
-        #       - Convert points to polar coordinates projection.
-        #       - Snap points to segmented polar coordinates.
-
-        bounds = BoundingBoxWidget.new(@instance)
-        grid = Grid.new(bounds.width, bounds.height)
-        grid.x_subdivs = @segmenter.subdivisions
-
-        projection = PolarProjection.new(radius)
-        arc_grid = projection.project(grid.segment_points)
-
-        x_axis = origin.vector_to(reference_points.first)
-        y_axis = x_axis * Z_AXIS
-        y_axis.reverse! if @direction.y < 0
-        to_world = Geom::Transformation.axes(origin, x_axis, y_axis)
-        arc_grid.each { |pt| pt.transform!(to_world) }
-
-        view.line_stipple = STIPPLE_LONG_DASH
-        view.line_width = 1
-        view.drawing_color = 'red'
-        view.draw(GL_LINES, lift(view, arc_grid))
-      end
     end
 
     private
@@ -197,7 +196,6 @@ module TT::Plugins::TrueBend
     # Return the full orientation of the two lines. Going counter-clockwise.
     #
     # @return [Float]
-    # @since 2.7.0
     def full_angle_between(vector1, vector2, normal = Z_AXIS)
       direction = (vector1 * vector2) % normal
       angle = vector1.angle_between(vector2)
@@ -205,7 +203,7 @@ module TT::Plugins::TrueBend
       angle
     end
 
-    # Creates a set of +Geom::Point3d+ objects for an arc.
+    # Creates a set of `Geom::Point3d` objects for an arc.
     #
     # @param [Geom::Point3d] center
     # @param [Geom::Vector3d] xaxis
@@ -216,7 +214,6 @@ module TT::Plugins::TrueBend
     # @param [Integer] num_segments
     #
     # @return [Array<Geom::Point3d>]
-    # @since 2.0.0
     def arc(center, xaxis, normal, radius, start_angle, end_angle, num_segments = 12)
       # Generate the first point.
       t = Geom::Transformation.rotation(center, normal, start_angle)
@@ -234,14 +231,6 @@ module TT::Plugins::TrueBend
     end
 
     def bend_points(points)
-      # o = origin
-      # r = radius
-      # points.map { |point|
-      #   # point.offset(X_AXIS, 200.mm)
-      #   vector = o.vector_to(point)
-      #   o.offset(vector, radius)
-      # }
-
       o = origin
       u = o.vector_to(points.first)
       v = o.vector_to(points.last)
@@ -251,7 +240,6 @@ module TT::Plugins::TrueBend
         a1 = -a2
         x = o.vector_to(Segment.new(points.first, points.last).mid_point)
         arc(o, x, z, radius, a1, a2, @segmenter.subdivisions)
-        # arc(o, u, z, radius, 0, angle, @segmenter.subdivisions)
       else
         points
       end

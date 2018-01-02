@@ -7,13 +7,25 @@ module TT::Plugins::TrueBend
     # polar coordinates.
     attr_accessor :radius
 
+    # Transformation applied to the projected points.
+    attr_accessor :transformation
+
     def initialize(radius)
       @radius = radius
+      @transformation = nil
+    end
+
+    # Sets the target transformation based on orgin and x-axis.
+    def axes(origin, x_axis, convex)
+      y_axis = x_axis.axes.x
+      y_axis.reverse! if convex
+      @transformation = Geom::Transformation.axes(origin, x_axis, y_axis)
+      nil
     end
 
     def project(points)
       circumference = Math::PI * (radius * 2)
-      points.map { |point|
+      projected = points.map { |point|
         # Map the X coordinate to an angular value in the Polar coordinate
         # system. The circumference at `radius` (Y=0) is considered the target
         # range for the X coordinate.
@@ -22,6 +34,8 @@ module TT::Plugins::TrueBend
         y = (radius + point.y) * Math.sin(angle)
         Geom::Point3d.new(x, y, 0)
       }
+      projected.each { |pt| pt.transform!(@transformation) } if @transformation
+      projected
     end
 
   end

@@ -14,11 +14,10 @@ module TT::Plugins::TrueBend
       @boundingbox = BoundingBoxWidget.new(instance)
 
       segment = @boundingbox.segments.first
-      # @segmenter = SubdividedSegmentWidget.new(segment, color: 'green')
-
-      @bender = Bender.new(instance, segment)
-
       polygon = @boundingbox.polygon(BB_POLYGON_FRONT)
+
+      @bender = Bender.new(instance, segment, polygon.normal)
+
       @manipulator = DragHandle.new(polygon.center, polygon.normal, color: 'red')
 
       @manipulator.on_drag {
