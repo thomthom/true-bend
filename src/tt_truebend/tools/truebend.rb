@@ -24,12 +24,12 @@ module TT::Plugins::TrueBend
         @bender.bend(@manipulator.direction)
       }
 
-      @manipulator.on_drag_complete {
-        model = Sketchup.active_model
-        model.start_operation('Bend', true)
-        @bender.commit
-        model.commit_operation
-      }
+      # @manipulator.on_drag_complete {
+      #   model = Sketchup.active_model
+      #   model.start_operation('Bend', true)
+      #   @bender.commit
+      #   model.commit_operation
+      # }
     end
 
     def enableVCB?
@@ -52,6 +52,17 @@ module TT::Plugins::TrueBend
 
     def resume(view)
       view.invalidate
+    end
+
+    def onReturn(view)
+      puts "onReturn"
+      return unless @bender.can_bend?
+      puts "> bend..."
+      model = Sketchup.active_model
+      model.start_operation('Bend', true)
+      @bender.commit
+      model.commit_operation
+      model.select_tool(nil) # TODO: Push and pop instead?
     end
 
     def onCancel(reason, view)

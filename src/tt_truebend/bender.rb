@@ -35,6 +35,10 @@ module TT::Plugins::TrueBend
       @angle = 0.0
     end
 
+    def can_bend?
+      @direction.valid?
+    end
+
     def concave?
       @direction.samedirection?(@normal)
     end
@@ -59,6 +63,82 @@ module TT::Plugins::TrueBend
     end
 
     def commit
+      instance = @instance.make_unique
+
+      entities = instance.parent.entities
+      group = entities.add_group
+
+      bounds = BoundingBoxWidget.new(instance)
+      to_scaled = bounds.scaling_transformation
+      to_local = instance.transformation.inverse
+      to_polar = to_scaled * to_local
+      plane_normal = @segment.line[1].transform(to_polar)
+
+      slice_direction = @direction.transform(to_local)
+      @segmenter.points.each { |point|
+        plane_origin = point.transform(to_polar)
+        plane = [plane_origin, plane_normal]
+
+        # TODO: Compute properly
+        padding = bounds.height / 10.0
+        pt1 = point.offset(direction, padding)
+        pt2 = point.offset(direction.reverse, bounds.height + padding)
+        pt1.offset!(Z_AXIS.reverse, padding)
+        pt2.offset!(Z_AXIS.reverse, padding)
+        pt3 = pt2.offset(Z_AXIS, bounds.depth + padding + padding)
+        pt4 = pt1.offset(Z_AXIS, bounds.depth + padding + padding)
+        group.entities.add_face(pt1, pt2, pt3, pt4)
+      }
+
+      # TODO: Detect new edges from the intersection.
+      #       Add to temp group and explode?
+      instance.definition.entities.intersect_with(
+        false,
+        instance.transformation,
+        instance.definition.entities,
+        instance.transformation,
+        false,
+        group.entities.to_a
+      )
+
+      group.erase!
+
+      instance.definition.entities.transform_entities(
+        to_scaled,
+        instance.definition.entities.to_a
+      )
+      # TODO: Counter-scale the instance.
+
+      edges = instance.definition.entities.grep(Sketchup::Edge)
+      vertices = edges.map(&:vertices).flatten.uniq
+      mesh_points = vertices.map(&:position)
+
+      polar_points = bend_points(@segmenter.points)
+      x_axis = origin.vector_to(polar_points.last)
+      projection = PolarProjection.new(radius)
+      projection.axes(origin, x_axis)
+      projected_points = projection.project(mesh_points, convex?)
+
+      projected_points.each { |pt| pt.transform!(to_local) }
+
+      vectors = vertices.each_with_index.map { |vertex, index|
+        vertex.position.vector_to(projected_points[index])
+      }
+
+      # TODO: Make helper to detect new edges.
+      existing_edges = instance.definition.entities.grep(Sketchup::Edge)
+
+      instance.definition.entities.transform_by_vectors(vertices, vectors)
+
+      edges = instance.definition.entities.grep(Sketchup::Edge)
+      new_edges = edges - existing_edges
+      new_edges.each { |edge|
+        edge.soft = true
+        edge.smooth = true
+        edge.casts_shadows = false
+      }
+
+      instance
     end
 
     def distance
