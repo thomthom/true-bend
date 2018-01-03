@@ -14,6 +14,7 @@ module TT::Plugins::TrueBend
     include ViewConstants
 
     attr_reader :segment, :direction
+    attr_accessor :segmented
 
     def initialize(instance, segment, normal)
       @instance = instance
@@ -23,6 +24,7 @@ module TT::Plugins::TrueBend
       @segment = segment
       @segmenter = SubdividedSegmentWidget.new(segment, color: 'green')
       @segmenter.subdivisions = 24
+      @segmented = true
 
       bounds = instance.definition.bounds
       @grid = Grid.new(bounds.width, bounds.height)
@@ -117,7 +119,7 @@ module TT::Plugins::TrueBend
       x_axis = origin.vector_to(polar_points.last)
       projection = PolarProjection.new(radius)
       projection.axes(origin, x_axis)
-      projected_points = projection.project(mesh_points, convex?)
+      projected_points = projection.project(mesh_points, convex?, segment_angle)
 
       projected_points.each { |pt| pt.transform!(to_local) }
 
@@ -191,6 +193,14 @@ module TT::Plugins::TrueBend
       end
     end
 
+    def segment_angle
+      if @segmented
+        angle / @segmenter.subdivisions.to_f
+      else
+        nil
+      end
+    end
+
     def draw(view)
       # Reference segment
       @segmenter.draw(view)
@@ -237,7 +247,7 @@ module TT::Plugins::TrueBend
           slicer.add_plane(plane)
         }
         mesh_points = slicer.segment_points
-        bent_mesh = projection.project(mesh_points, convex?)
+        bent_mesh = projection.project(mesh_points, convex?, segment_angle)
         view.line_stipple = STIPPLE_SOLID
         view.line_width = 2
         view.drawing_color = 'maroon'

@@ -23,22 +23,40 @@ module TT::Plugins::TrueBend
       nil
     end
 
-    def project(points, convex)
+    def project(points, convex, segment_angle = nil)
       tr = convex ? Geom::Transformation.scaling(1, -1, 1) :
                     Geom::Transformation.scaling(-1, 1, 1)
       circumference = Math::PI * (radius * 2)
-      projected = points.map { |point|
+      projected = points.map { |local_point|
         # Map the X coordinate to an angular value in the Polar coordinate
         # system. The circumference at `radius` (Y=0) is considered the target
         # range for the X coordinate.
-        point = point.transform(tr)
+        point = local_point.transform(tr)
         angle = PI2 * (point.x / circumference)
-        x = (radius + point.y) * Math.cos(angle)
-        y = (radius + point.y) * Math.sin(angle)
-        Geom::Point3d.new(x, y, point.z)
+        polar_point = project_point(point, angle)
+        if segment_angle
+          segment = (angle / segment_angle).to_i
+          a1 = segment_angle * (segment)
+          a2 = segment_angle * (segment - 1)
+          pt1 = project_point(point, a1)
+          pt2 = project_point(point, a2)
+          chord = [pt1, pt2]
+          polar_origin = Geom::Point3d.new(0, 0, local_point.z)
+          projection = [polar_origin, polar_point]
+          polar_point = Geom.intersect_line_line(projection, chord)
+        end
+        polar_point
       }
       projected.each { |pt| pt.transform!(@transformation) } if @transformation
       projected
+    end
+
+    private
+
+    def project_point(point, angle)
+      x = (radius + point.y) * Math.cos(angle)
+      y = (radius + point.y) * Math.sin(angle)
+      Geom::Point3d.new(x, y, point.z)
     end
 
   end

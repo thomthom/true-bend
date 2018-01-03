@@ -23,13 +23,15 @@ module TT::Plugins::TrueBend
       @manipulator.on_drag {
         @bender.bend(@manipulator.direction)
       }
+    end
 
-      # @manipulator.on_drag_complete {
-      #   model = Sketchup.active_model
-      #   model.start_operation('Bend', true)
-      #   @bender.commit
-      #   model.commit_operation
-      # }
+    def getMenu(menu)
+      id = menu.add_item('Segmented') {
+        @bender.segmented = !@bender.segmented
+      }
+      menu.set_validation_proc(id)  {
+        @bender.segmented ? MF_CHECKED : MF_ENABLED
+      }
     end
 
     def enableVCB?
