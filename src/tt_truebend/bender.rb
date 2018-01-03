@@ -14,7 +14,7 @@ module TT::Plugins::TrueBend
     include ViewConstants
 
     attr_reader :segment, :direction
-    attr_accessor :segmented
+    attr_accessor :segmented, :soft_smooth
 
     def initialize(instance, segment, normal)
       @instance = instance
@@ -25,6 +25,7 @@ module TT::Plugins::TrueBend
       @segmenter = SubdividedSegmentWidget.new(segment, color: 'green')
       @segmenter.subdivisions = 24
       @segmented = true
+      @soft_smooth = true
 
       bounds = instance.definition.bounds
       @grid = Grid.new(bounds.width, bounds.height)
@@ -92,16 +93,21 @@ module TT::Plugins::TrueBend
         group.entities.add_face(pt1, pt2, pt3, pt4)
       }
 
-      # TODO: Detect new edges from the intersection.
-      #       Add to temp group and explode?
+      temp = instance.definition.entities.add_group
       instance.definition.entities.intersect_with(
         false,
         instance.transformation,
-        instance.definition.entities,
+        temp.entities,
         instance.transformation,
         false,
         group.entities.to_a
       )
+      temp.entities.grep(Sketchup::Edge) { |edge|
+        edge.soft = true
+        edge.smooth = true
+        edge.casts_shadows = false
+      } if @segmented && @soft_smooth
+      temp.explode
 
       group.erase!
 

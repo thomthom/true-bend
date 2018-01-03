@@ -32,6 +32,17 @@ module TT::Plugins::TrueBend
       menu.set_validation_proc(id)  {
         @bender.segmented ? MF_CHECKED : MF_ENABLED
       }
+
+      id = menu.add_item('Soften/Smooth Segments') {
+        @bender.soft_smooth = !@bender.soft_smooth
+      }
+      menu.set_validation_proc(id)  {
+        if @bender.segmented
+          @bender.soft_smooth ? MF_CHECKED : MF_ENABLED
+        else
+          MF_DISABLED
+        end
+      }
     end
 
     def enableVCB?
@@ -57,9 +68,7 @@ module TT::Plugins::TrueBend
     end
 
     def onReturn(view)
-      puts "onReturn"
       return unless @bender.can_bend?
-      puts "> bend..."
       model = Sketchup.active_model
       model.start_operation('Bend', true)
       @bender.commit
