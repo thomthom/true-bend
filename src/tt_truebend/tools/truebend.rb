@@ -40,7 +40,7 @@ module TT::Plugins::TrueBend
         if @bender.segmented
           @bender.soft_smooth ? MF_CHECKED : MF_ENABLED
         else
-          MF_DISABLED
+          MF_DISABLED | MF_GRAYED | MF_CHECKED
         end
       }
     end
