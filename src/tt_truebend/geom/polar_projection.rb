@@ -26,6 +26,7 @@ module TT::Plugins::TrueBend
     def project(points, convex, segment_angle = nil)
       tr = convex ? Geom::Transformation.scaling(1, -1, 1) :
                     Geom::Transformation.scaling(-1, 1, 1)
+      offset_index = convex ? 1 : -1
       circumference = Math::PI * (radius * 2)
       projected = points.map { |local_point|
         # Map the X coordinate to an angular value in the Polar coordinate
@@ -37,7 +38,7 @@ module TT::Plugins::TrueBend
         if segment_angle
           segment = (angle / segment_angle).to_i
           a1 = segment_angle * (segment)
-          a2 = segment_angle * (segment - 1)
+          a2 = segment_angle * (segment + offset_index)
           pt1 = project_point(point, a1)
           pt2 = project_point(point, a2)
           chord = [pt1, pt2]
