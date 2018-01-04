@@ -82,15 +82,18 @@ module TT::Plugins::TrueBend
         plane_origin = point.transform(to_polar)
         plane = [plane_origin, plane_normal]
 
-        # TODO: Compute properly
-        padding = bounds.height / 10.0
-        pt1 = point.offset(direction, padding)
-        pt2 = point.offset(direction.reverse, bounds.height + padding)
-        pt1.offset!(Z_AXIS.reverse, padding)
-        pt2.offset!(Z_AXIS.reverse, padding)
-        pt3 = pt2.offset(Z_AXIS, bounds.depth + padding + padding)
-        pt4 = pt1.offset(Z_AXIS, bounds.depth + padding + padding)
-        group.entities.add_face(pt1, pt2, pt3, pt4)
+        z_axis = @segment.line[1]
+        tr = Geom::Transformation.new(point, z_axis)
+        n = bounds.diagonal
+        w = bounds.diagonal * 3
+        points = [
+          Geom::Point3d.new(-n,     -n,     0),
+          Geom::Point3d.new(-n + w, -n,     0),
+          Geom::Point3d.new(-n + w, -n + w, 0),
+          Geom::Point3d.new(-n,     -n + w, 0),
+        ]
+        points.each { |pt| pt.transform!(tr) }
+        group.entities.add_face(points)
       }
 
       temp = instance.definition.entities.add_group
@@ -106,7 +109,7 @@ module TT::Plugins::TrueBend
         edge.soft = true
         edge.smooth = true
         edge.casts_shadows = false
-      } if @segmented && @soft_smooth
+      } if !@segmented || (@segmented && @soft_smooth)
       temp.explode
 
       group.erase!
@@ -115,7 +118,6 @@ module TT::Plugins::TrueBend
         to_scaled,
         instance.definition.entities.to_a
       )
-      # TODO: Counter-scale the instance.
 
       edges = instance.definition.entities.grep(Sketchup::Edge)
       vertices = edges.map(&:vertices).flatten.uniq

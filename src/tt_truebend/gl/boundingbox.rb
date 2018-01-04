@@ -1,3 +1,4 @@
+require 'tt_truebend/constants/boundingbox'
 require 'tt_truebend/constants/view'
 require 'tt_truebend/helpers/boundingbox'
 require 'tt_truebend/gl/drawing_helper'
@@ -5,6 +6,7 @@ require 'tt_truebend/gl/drawing_helper'
 module TT::Plugins::TrueBend
   class BoundingBoxWidget
 
+    include BoundingBoxConstants
     include DrawingHelper
     include ViewConstants
 
@@ -28,6 +30,17 @@ module TT::Plugins::TrueBend
 
     def depth
       (local_bounds.depth * scale_z).to_l
+    end
+
+    def diagonal
+      pts = points
+      pts[BB_LEFT_FRONT_BOTTOM].distance(pts[BB_RIGHT_BACK_TOP])
+    end
+
+    def points
+      local_bounds.points.map { |point|
+        point.transform(@instance.transformation)
+      }
     end
 
     def polygon(index)
