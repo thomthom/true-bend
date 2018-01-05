@@ -4,6 +4,7 @@ require 'tt_truebend/gl/drawing_helper'
 require 'tt_truebend/gl/grid'
 require 'tt_truebend/gl/slicer'
 require 'tt_truebend/gl/subdivided_segment'
+require 'tt_truebend/helpers/edge'
 require 'tt_truebend/geom/polar_projection'
 require 'tt_truebend/geom/segment'
 
@@ -11,6 +12,7 @@ module TT::Plugins::TrueBend
   class Bender
 
     include DrawingHelper
+    include EdgeHelper
     include ViewConstants
 
     attr_reader :segment, :direction
@@ -135,17 +137,8 @@ module TT::Plugins::TrueBend
         vertex.position.vector_to(projected_points[index])
       }
 
-      # TODO: Make helper to detect new edges.
-      existing_edges = instance.definition.entities.grep(Sketchup::Edge)
-
-      instance.definition.entities.transform_by_vectors(vertices, vectors)
-
-      edges = instance.definition.entities.grep(Sketchup::Edge)
-      new_edges = edges - existing_edges
-      new_edges.each { |edge|
-        edge.soft = true
-        edge.smooth = true
-        edge.casts_shadows = false
+      smooth_new_edges(instance.definition.entities) {
+        instance.definition.entities.transform_by_vectors(vertices, vectors)
       }
 
       instance
