@@ -21,7 +21,7 @@ module TT::Plugins::TrueBend
       return
     end
     tool = TrueBendTool.new(instances.first)
-    model.select_tool(tool)
+    model.tools.push_tool(tool)
   end
 
 end # module

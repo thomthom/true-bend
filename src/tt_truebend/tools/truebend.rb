@@ -73,7 +73,7 @@ module TT::Plugins::TrueBend
       model.start_operation('Bend', true)
       @bender.commit
       model.commit_operation
-      model.select_tool(nil) # TODO: Push and pop instead?
+      model.tools.pop_tool
     end
 
     def onCancel(reason, view)
