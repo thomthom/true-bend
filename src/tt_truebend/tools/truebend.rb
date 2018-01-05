@@ -46,7 +46,7 @@ module TT::Plugins::TrueBend
     end
 
     def enableVCB?
-      @manipulator.can_adjust?
+      true
     end
 
     def activate
@@ -84,30 +84,25 @@ module TT::Plugins::TrueBend
     end
 
     def onUserText(text, view)
-      unless text.match(/^[0-9.,;:]+$/)
-        # If there are non-numeric characters - check if they have special
-        # meaning.
-        if text.end_with?('s')
-          # Adjust subdivisions.
-          @bender.subdivisions = text.to_i
+      input = VCBParser.new(text)
+      if input.modifier?
+        if input.segments?
+          @bender.subdivisions = input.segments.min(2).value
           return
         else
-          # Switch adjustment unit.
-          @bend_by_distance = !text.end_with?('deg')
+          # Assuming that if it's not degrees it will be a length unit.
+          @bend_by_distance = !input.degrees?
         end
       end
       # Adjust the last value.
-      # TODO: Make additional check to see if any value can be adjusted.
-      #       Don't trust enableVCB? to be fully up to date.
+      unless @bender.can_bend?
+        return UI.beep
+      end
       begin
         if bend_by_distance?
-          # TODO: Clean up this.
-          d = @bender.direction.clone
-          d.length = text.to_l
-          @bender.bend(d)
-          # @bender.distance = text.to_l
+          @bender.distance = input.length.value
         else
-          @bender.angle = text.to_f.degrees
+          @bender.angle = input.degrees.value
         end
       rescue ArgumentError => error
         # TODO: Don't emit error message directly to user.

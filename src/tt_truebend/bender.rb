@@ -148,6 +148,13 @@ module TT::Plugins::TrueBend
       (radius * (1 - Math.cos(angle / 2))).to_l
     end
 
+    def distance=(value)
+      # TODO: Revise what "distance" represent.
+      vector = direction.clone
+      vector.length = value
+      bend(vector)
+    end
+
     def angle
       # radians = length / radius
       @angle
