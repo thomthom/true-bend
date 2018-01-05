@@ -10,7 +10,6 @@ module TT::Plugins::TrueBend
 
     def initialize(instance)
       @bend_by_distance = false
-      # @bender = Bender.new(instance)
       @boundingbox = BoundingBoxWidget.new(instance)
 
       segment = @boundingbox.segments.first
@@ -137,7 +136,6 @@ module TT::Plugins::TrueBend
       bounds = Geom::BoundingBox.new
       bounds.add(@bender.bounds)
       bounds.add(@manipulator.bounds)
-      # bounds.add(@segmenter.bounds)
       bounds
     end
 
@@ -145,7 +143,6 @@ module TT::Plugins::TrueBend
       @bender.draw(view)
       @boundingbox.draw(view)
       @manipulator.draw(view)
-      # @segmenter.draw(view)
     end
 
     private
@@ -157,12 +154,8 @@ module TT::Plugins::TrueBend
     def update_ui
       if @manipulator.drag?
         Sketchup.status_text = 'Drag to adjust the amount of bend.'
-        # Sketchup.vcb_label = 'Distance'
-        # Sketchup.vcb_value = @manipulator.distance
       else
         Sketchup.status_text = 'Pick a handle to start bending the instance.'
-        Sketchup.vcb_label = 'Distance'
-        # Sketchup.vcb_value = @bender.distance
       end
       if bend_by_distance?
         Sketchup.vcb_label = 'Distance'
@@ -171,8 +164,6 @@ module TT::Plugins::TrueBend
         Sketchup.vcb_label = 'Angle'
         Sketchup.vcb_value = Sketchup.format_angle(@bender.angle)
       end
-      # Sketchup.vcb_label = 'Angle'
-      # Sketchup.vcb_value = @bender.angle
     end
 
   end # class

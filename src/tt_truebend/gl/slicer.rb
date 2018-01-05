@@ -42,7 +42,6 @@ module TT::Plugins::TrueBend
         edge.hidden? || edge.soft? || !edge.layer.visible?
       }
       edges.map { |edge|
-        # Segment.new(edge.start.position, edge.end.position).transform!(@instance.transformation)
         segment = Segment.new(edge.start.position, edge.end.position)
         segment.transform!(@transformation) if @transformation
         segment
