@@ -71,6 +71,8 @@ module TT::Plugins::TrueBend
       instance = @instance.make_unique
       entities = instance.definition.entities
 
+      # Because the instance might not be scaled uniformly the scaling must
+      # be applied to the definition in order to correctly slice it.
       apply_instance_scaling(instance)
 
       # Slice the mesh.

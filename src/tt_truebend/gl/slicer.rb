@@ -8,6 +8,8 @@ module TT::Plugins::TrueBend
     include DrawingHelper
     include ViewConstants
 
+    # Transformation applied to the result of `segment_points` to transform into
+    # world coordinates.
     attr_accessor :transformation
 
     def initialize(instance)
@@ -16,6 +18,7 @@ module TT::Plugins::TrueBend
       @transformation = nil
     end
 
+    # The planes should be in world coordinates.
     def add_plane(plane)
       @planes << plane
     end
