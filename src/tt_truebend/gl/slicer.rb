@@ -20,9 +20,56 @@ module TT::Plugins::TrueBend
       @planes << plane
     end
 
+    def slice
+      entities = @instance.definition.entities
+
+      # The slicing group is created as a sibling to the instance being sliced.
+      # Don't want to create it inside the instance being sliced as it should
+      # not intersect itself.
+      slice_group = @instance.parent.entities.add_group
+
+      # Create faces slicing through the instance. The faces are made large
+      # enough to fully intersect the instance.
+      bounds = BoundingBoxWidget.new(@instance)
+      n = bounds.diagonal
+      w = bounds.diagonal * 3
+      quad = [
+        Geom::Point3d.new(-n,     -n,     0),
+        Geom::Point3d.new(-n + w, -n,     0),
+        Geom::Point3d.new(-n + w, -n + w, 0),
+        Geom::Point3d.new(-n,     -n + w, 0),
+      ]
+      @planes.each { |plane|
+        plane_origin = plane[0]
+        plane_normal = plane[1]
+        tr = Geom::Transformation.new(plane_origin, plane_normal)
+        points = quad.map { |pt| pt.transform(tr) }
+        slice_group.entities.add_face(points)
+      }
+
+      # The new edges from the intersection is created in a temporary group so
+      # it is possible to apply various properties to them. If the edges are
+      # created directly in the definition then its not possible to determine
+      # which are the intersecting edges and which were created as a result of
+      # splitting an existing edge.
+      temp = entities.add_group
+      entities.intersect_with(
+        false,
+        @instance.transformation,
+        temp.entities,
+        @instance.transformation,
+        false,
+        slice_group.entities.to_a
+      )
+      temp.entities.grep(Sketchup::Edge) { |edge| yield edge }
+      temp.explode
+
+      slice_group.erase!
+    end
+
     def segment_points
       original_segments = edge_segments(@instance.definition.entities)
-      segments = slice(original_segments, @planes)
+      segments = slice_segments(original_segments, @planes)
       segments.map(&:points).flatten
     end
 
@@ -48,7 +95,7 @@ module TT::Plugins::TrueBend
       }
     end
 
-    def slice(segments, planes)
+    def slice_segments(segments, planes)
       result = []
       stack = segments.dup
       planes.each { |plane|

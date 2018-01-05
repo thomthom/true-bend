@@ -69,74 +69,40 @@ module TT::Plugins::TrueBend
 
     def commit
       instance = @instance.make_unique
+      entities = instance.definition.entities
 
-      entities = instance.parent.entities
-      group = entities.add_group
+      apply_instance_scaling(instance)
 
-      bounds = BoundingBoxWidget.new(instance)
-      to_scaled = bounds.scaling_transformation
-      to_local = instance.transformation.inverse
-      to_polar = to_scaled * to_local
-      plane_normal = @segment.line[1].transform(to_polar)
-
-      slice_direction = @direction.transform(to_local)
+      # Slice the mesh.
+      slicer = Slicer.new(@instance)
+      plane_normal = @segment.line[1]
       @segmenter.points.each { |point|
-        plane_origin = point.transform(to_polar)
-        plane = [plane_origin, plane_normal]
-
-        z_axis = @segment.line[1]
-        tr = Geom::Transformation.new(point, z_axis)
-        n = bounds.diagonal
-        w = bounds.diagonal * 3
-        points = [
-          Geom::Point3d.new(-n,     -n,     0),
-          Geom::Point3d.new(-n + w, -n,     0),
-          Geom::Point3d.new(-n + w, -n + w, 0),
-          Geom::Point3d.new(-n,     -n + w, 0),
-        ]
-        points.each { |pt| pt.transform!(tr) }
-        group.entities.add_face(points)
+        slicer.add_plane([point.clone, plane_normal])
+      }
+      slicer.slice { |new_edge|
+        next if @segmented && !@soft_smooth
+        new_edge.soft = true
+        new_edge.smooth = true
+        new_edge.casts_shadows = false
       }
 
-      temp = instance.definition.entities.add_group
-      instance.definition.entities.intersect_with(
-        false,
-        instance.transformation,
-        temp.entities,
-        instance.transformation,
-        false,
-        group.entities.to_a
-      )
-      temp.entities.grep(Sketchup::Edge) { |edge|
-        edge.soft = true
-        edge.smooth = true
-        edge.casts_shadows = false
-      } if !@segmented || (@segmented && @soft_smooth)
-      temp.explode
-
-      group.erase!
-
-      instance.definition.entities.transform_entities(
-        to_scaled,
-        instance.definition.entities.to_a
-      )
-
+      # Collect all vertices and create a 1:1 array mapping their positions.
       edges = instance.definition.entities.grep(Sketchup::Edge)
       vertices = edges.map(&:vertices).flatten.uniq
       mesh_points = vertices.map(&:position)
 
-      polar_points = bend_points(@segmenter.points)
-      x_axis = origin.vector_to(polar_points.last)
+      # Create a new set of points representing the polar projection.
+      to_local = instance.transformation.inverse
+      local_origin = origin.transform(to_local)
+      local_polar_x_axis = polar_x_axis.transform(to_local)
       projection = PolarProjection.new(radius)
-      projection.axes(origin, x_axis)
+      projection.axes(local_origin, local_polar_x_axis)
       projected_points = projection.project(mesh_points, convex?, segment_angle)
 
-      projected_points.each { |pt| pt.transform!(to_local) }
-
+      # Transform each vertex to their new position.
       vectors = vertices.each_with_index.map { |vertex, index|
         vertex.position.vector_to(projected_points[index])
       }
-
       smooth_new_edges(instance.definition.entities) {
         instance.definition.entities.transform_by_vectors(vertices, vectors)
       }
@@ -185,6 +151,11 @@ module TT::Plugins::TrueBend
     def arc_length
       # s = R * a
       (radius * angle).to_l
+    end
+
+    def polar_x_axis
+      polar_points = bend_points(@segmenter.points)
+      origin.vector_to(polar_points.last)
     end
 
     def bounds
@@ -382,6 +353,19 @@ module TT::Plugins::TrueBend
         total += points[i].distance(points[i + 1])
       }
       total.to_l
+    end
+
+    def apply_instance_scaling(instance)
+      bounds = BoundingBoxWidget.new(instance)
+      to_scaled = bounds.scaling_transformation
+      instance.definition.entities.transform_entities(
+        to_scaled,
+        instance.definition.entities.to_a
+      )
+      to_world = instance.transformation
+      to_local = instance.transformation.inverse
+      instance.transform!(to_world * to_scaled.inverse * to_local)
+      to_scaled
     end
 
   end # class
