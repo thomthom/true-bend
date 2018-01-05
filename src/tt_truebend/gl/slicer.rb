@@ -1,12 +1,7 @@
-require 'tt_truebend/constants/view'
-require 'tt_truebend/gl/drawing_helper'
 require 'tt_truebend/geom/segment'
 
 module TT::Plugins::TrueBend
   class Slicer
-
-    include DrawingHelper
-    include ViewConstants
 
     # Transformation applied to the result of `segment_points` to transform into
     # world coordinates.
@@ -74,15 +69,6 @@ module TT::Plugins::TrueBend
       original_segments = edge_segments(@instance.definition.entities)
       segments = slice_segments(original_segments, @planes)
       segments.map(&:points).flatten
-    end
-
-    def draw(view)
-      points = lift!(view, segment_points, pixels: 1)
-      view.line_stipple = STIPPLE_SOLID
-      view.line_width = 2
-      view.drawing_color = 'maroon'
-      view.draw(GL_LINES, points)
-      view.draw_points(points, 6, DRAW_FILLED_SQUARE, 'maroon')
     end
 
     private
