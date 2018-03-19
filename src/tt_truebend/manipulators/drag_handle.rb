@@ -1,6 +1,4 @@
 require 'tt_truebend/constants/view'
-require 'tt_truebend/gl/boundingbox'
-require 'tt_truebend/helpers/boundingbox'
 
 module TT::Plugins::TrueBend
   class DragHandle
@@ -65,7 +63,6 @@ module TT::Plugins::TrueBend
     def draw(view)
       points = handle_points(view)
       if @mouse_down_position && @direction && @direction.valid?
-      # if @direction && @direction.valid?
         points.last.offset!(@direction)
       end
 
@@ -123,11 +120,8 @@ module TT::Plugins::TrueBend
 
 
     def onLButtonDown(flags, x, y, view)
-      # puts 'onLButtonDown'
-      # p mouse_over?(view)
       @mouse_position = Geom::Point3d.new(x, y, 0)
       @direction = Geom::Vector3d.new(0, 0, 0)
-      # @mouse_down_position = @mouse_position.clone if mouse_over?(view)
 
       picked = pick_point(x, y, view)
       if picked
@@ -137,8 +131,6 @@ module TT::Plugins::TrueBend
     end
 
     def onLButtonUp(flags, x, y, view)
-      # puts 'onLButtonUp'
-      # picked = pick_point(x, y, view)
       if @start_pick
         picked = pick_closest(x, y, view)
         @direction = @start_pick.vector_to(picked)
@@ -150,13 +142,10 @@ module TT::Plugins::TrueBend
     end
 
     def onMouseMove(flags, x, y, view)
-      # puts 'onMouseMove'
       @mouse_position = Geom::Point3d.new(x, y, 0)
-      # p @mouse_position
       if @mouse_down_position
         @drag = @mouse_position != @mouse_down_position
 
-        # picked = pick_point(x, y, view)
         picked = pick_closest(x, y, view)
         @direction = @start_pick.vector_to(picked)
         @events[:drag].call if @events[:drag]
