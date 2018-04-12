@@ -71,7 +71,7 @@ module TT::Plugins::TrueBend
           corner(BB_RIGHT_FRONT_BOTTOM),
           corner(BB_RIGHT_BACK_BOTTOM),
           corner(BB_RIGHT_BACK_TOP),
-          corner(BB_RIGHT_FRONT_TOP),
+          corner(BB_RIGHT_FRONT_TOP)
         ),
         Polygon.new(
           corner(BB_RIGHT_BACK_BOTTOM),

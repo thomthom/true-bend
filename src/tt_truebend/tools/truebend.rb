@@ -66,7 +66,7 @@ module TT::Plugins::TrueBend
       view.invalidate
     end
 
-    def onReturn(view)
+    def onReturn(_view)
       return unless @bender.can_bend?
       model = Sketchup.active_model
       model.start_operation('Bend', true)
@@ -75,7 +75,7 @@ module TT::Plugins::TrueBend
       model.tools.pop_tool
     end
 
-    def onCancel(reason, view)
+    def onCancel(_reason, view)
       @bender.reset
       @manipulator.reset
       update_ui

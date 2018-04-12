@@ -37,7 +37,7 @@ module TT::Plugins::TrueBend
         polar_point = project_point(point, angle)
         if segment_angle
           segment = (angle / segment_angle).to_i
-          a1 = segment_angle * (segment)
+          a1 = segment_angle * segment
           a2 = segment_angle * (segment + offset_index)
           pt1 = project_point(point, a1)
           pt2 = project_point(point, a2)

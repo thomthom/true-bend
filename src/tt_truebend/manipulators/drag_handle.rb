@@ -119,18 +119,17 @@ module TT::Plugins::TrueBend
     end
 
 
-    def onLButtonDown(flags, x, y, view)
+    def onLButtonDown(_flags, x, y, view)
       @mouse_position = Geom::Point3d.new(x, y, 0)
       @direction = Geom::Vector3d.new(0, 0, 0)
 
       picked = pick_point(x, y, view)
-      if picked
-        @start_pick = picked
-        @mouse_down_position = @mouse_position.clone
-      end
+      return unless picked
+      @start_pick = picked
+      @mouse_down_position = @mouse_position.clone
     end
 
-    def onLButtonUp(flags, x, y, view)
+    def onLButtonUp(_flags, x, y, view)
       if @start_pick
         picked = pick_closest(x, y, view)
         @direction = @start_pick.vector_to(picked)
@@ -141,7 +140,7 @@ module TT::Plugins::TrueBend
       @drag = false
     end
 
-    def onMouseMove(flags, x, y, view)
+    def onMouseMove(_flags, x, y, view)
       @mouse_position = Geom::Point3d.new(x, y, 0)
       if @mouse_down_position
         @drag = @mouse_position != @mouse_down_position

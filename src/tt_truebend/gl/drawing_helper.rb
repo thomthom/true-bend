@@ -2,7 +2,7 @@ module TT::Plugins::TrueBend
   module DrawingHelper
 
     def lift(view, points, pixels: 1)
-      lift!(view, points.map { |point| point.clone }, pixels: pixels)
+      lift!(view, points.map(&:clone), pixels: pixels)
     end
 
     def lift!(view, points, pixels: 1)

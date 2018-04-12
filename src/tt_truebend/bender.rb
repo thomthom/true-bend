@@ -69,7 +69,7 @@ module TT::Plugins::TrueBend
 
     def commit
       instance = @instance.make_unique
-      entities = instance.definition.entities
+      instance_entities = instance.definition.entities
 
       # Because the instance might not be scaled uniformly the scaling must
       # be applied to the definition in order to correctly slice it.
@@ -89,7 +89,7 @@ module TT::Plugins::TrueBend
       }
 
       # Collect all vertices and create a 1:1 array mapping their positions.
-      edges = instance.definition.entities.grep(Sketchup::Edge)
+      edges = instance_entities.grep(Sketchup::Edge)
       vertices = edges.map(&:vertices).flatten.uniq
       mesh_points = vertices.map(&:position)
 
@@ -105,8 +105,8 @@ module TT::Plugins::TrueBend
       vectors = vertices.each_with_index.map { |vertex, index|
         vertex.position.vector_to(projected_points[index])
       }
-      smooth_new_edges(instance.definition.entities) {
-        instance.definition.entities.transform_by_vectors(vertices, vectors)
+      smooth_new_edges(instance_entities) {
+        instance_entities.transform_by_vectors(vertices, vectors)
       }
 
       instance
@@ -325,7 +325,7 @@ module TT::Plugins::TrueBend
       points << center.offset(xaxis, radius).transform(t)
       # Prepare a transformation we can repeat on the last entry in point to complete the arc.
       t = Geom::Transformation.rotation(center, normal, (end_angle - start_angle) / num_segments )
-      1.upto(num_segments) { |i|
+      1.upto(num_segments) {
         points << points.last.transform(t)
       }
       points

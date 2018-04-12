@@ -1,3 +1,5 @@
+inherit_from: .rubocop_todo.yml
+
 require: rubocop-sketchup
 
 AllCops:
@@ -20,6 +22,11 @@ AllCops:
       - skippy/
       - tests/
   TargetRubyVersion: 2.1 # Should have been 2.0 but RuboCop dropped support.
+
+# In debug code the encoding bug in Ruby isn't a big issue.
+SketchupSuggestions/FileEncoding:
+  Exclude:
+  - src/tt_truebend/debug.rb
 
 # I will align my arrays as I please!
 Layout/AlignArray:
@@ -87,8 +94,9 @@ Metrics/CyclomaticComplexity:
   Enabled: false
 
 # Allowing for a few more lines than the default 10.
-Metrics/MethodLength:
-  Max: 20
+# TODO: Enable after addressing `rubocop_todo.yml`
+# Metrics/MethodLength:
+#   Max: 20
 
 # Too noisy...
 Metrics/PerceivedComplexity:
@@ -110,6 +118,8 @@ Naming/FileName:
 Naming/MethodName:
   Exclude:
     - '**/*_tool.rb'
+    - '**/tools/*.rb'
+    - '**/manipulators/*.rb'
 
 # Variables such as x, y, z; u, v; r, g, b, is all too common within the world
 # of 3D and their meaning is clear.
@@ -124,12 +134,21 @@ Style/BlockDelimiters:
 Style/ClassAndModuleChildren:
   Enabled: false
 
+# No hard rule on this.
+Style/ConditionalAssignment:
+  Enabled: false
+
 # Nah, it's ok.
 Style/CommentedKeyword:
   Enabled: false
 
 # No need for a doc-block for each class/module.
 Style/Documentation:
+  Enabled: false
+
+# `!!` is fine when you want to force a true boolean value.
+# https://github.com/bbatsov/rubocop/issues/3344
+Style/DoubleNegation:
   Enabled: false
 
 # Some times it simply reads better to not have a modifier conditional.
