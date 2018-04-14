@@ -1,8 +1,8 @@
 #-------------------------------------------------------------------------------
 #
-#    Author: Unknown
-# Copyright: Copyright (c) 2017
-#   License: None
+#    Author: Thomas Thomassen
+# Copyright: Copyright (c) 2017-2018
+#   License: MIT License
 #
 #-------------------------------------------------------------------------------
 
