@@ -8,7 +8,7 @@ module TT::Plugins::TrueBend
     include BoundingBoxConstants
 
     def points
-      8.times.map { |i| corner(i) }
+      Array.new(8) { |i| corner(i) }
     end
 
     def segment_points

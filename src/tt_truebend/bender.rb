@@ -324,12 +324,12 @@ module TT::Plugins::TrueBend
       points = []
       points << center.offset(xaxis, radius).transform(t)
       # Prepare a transformation we can repeat on the last entry in point to complete the arc.
-      t = Geom::Transformation.rotation(center, normal, (end_angle - start_angle) / num_segments )
+      t = Geom::Transformation.rotation(center, normal, (end_angle - start_angle) / num_segments)
       1.upto(num_segments) {
         points << points.last.transform(t)
       }
       points
-    rescue
+    rescue StandardError
       p [center, xaxis, normal, radius, start_angle, end_angle, num_segments]
       raise
     end

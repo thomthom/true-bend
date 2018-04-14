@@ -1,9 +1,10 @@
 module TT::Plugins::TrueBend
   module EdgeHelper
 
-    def detect_new_edges(entities, &block)
+    def detect_new_edges(entities)
+      raise ArgumentError, 'expected block' unless block_given?
       existing_edges = entities.grep(Sketchup::Edge)
-      block.call
+      yield
       edges = entities.grep(Sketchup::Edge)
       edges - existing_edges
     end
