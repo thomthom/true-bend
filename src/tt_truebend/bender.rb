@@ -18,17 +18,34 @@ module TT::Plugins::TrueBend
     attr_reader :segment, :direction
     attr_accessor :segmented, :soft_smooth
 
+    # @param [Sketchup::ComponentInstance] instance
+    # @param [Segment] segment
+    # @param [Geom::Vector3d] normal
     def initialize(instance, segment, normal)
+      # The instance to bend.
       @instance = instance
+      # The normal (unit vector) for the concave direction of a bend.
       @normal = normal
+      # The direction in which the bend is made. It's length determine magnitude
+      # and its direction in relationship to @normal indicate concave or convex
+      # bending.
       @direction = Geom::Vector3d.new(0, 0, 0)
+      # The angle of the bend, in radians.
       @angle = 0.0
+      # The reference segment which is used to compute the bending from.
       @segment = segment
+      # Viewport widget that visualize the reference segment with points along
+      # its length illustrating the current number of subdivisions.
       @segmenter = SubdividedSegmentWidget.new(segment, color: 'green')
       @segmenter.subdivisions = 24
+      # Toggles whether the bend adhere to true curve or segmented curve.
       @segmented = true
+      # Toogles whether to soften & smooth the edges created to subdivide the
+      # mesh for the bending.
       @soft_smooth = true
 
+      # Grid widget to visualize the how the bend geometry is mapped from its
+      # original shape to the bent shape. `@grid` represent the original mesh.
       bounds = instance.definition.bounds
       @grid = Grid.new(bounds.width, bounds.height)
       @grid.x_subdivs = @segmenter.subdivisions
@@ -68,7 +85,7 @@ module TT::Plugins::TrueBend
     end
 
     def commit
-      instance = @instance.make_unique
+      instance = @instance.make_unique # TODO: Only if it's a group?
       instance_entities = instance.definition.entities
 
       # Because the instance might not be scaled uniformly the scaling must
@@ -108,6 +125,8 @@ module TT::Plugins::TrueBend
       smooth_new_edges(instance_entities) {
         instance_entities.transform_by_vectors(vertices, vectors)
       }
+
+      # TODO: Bend child instances.
 
       instance
     end
