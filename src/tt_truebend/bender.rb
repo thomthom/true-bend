@@ -97,8 +97,9 @@ module TT::Plugins::TrueBend
       instance = ensure_groups_are_uniqe(@instance)
       entities = instance.definition.entities
 
-      planes = slicing_planes(@segmenter)
+      explode_curves(entities)
 
+      planes = slicing_planes(@segmenter)
       slicer = Slicer.new(planes)
       slicer.slice(instance) { |new_edge|
         next if @segmented && !@soft_smooth

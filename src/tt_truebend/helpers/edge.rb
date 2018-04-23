@@ -11,6 +11,19 @@ module TT::Plugins::TrueBend
       edges - existing_edges
     end
 
+    # @param [Sketchup::Entities] entities
+    def explode_curves(entities)
+      entities.each { |entity|
+        if entity.is_a?(Sketchup::Edge)
+          entity.explode_curve
+        elsif instance?(entity)
+          entity.make_unique
+          explode_curves(entity.definition.entities)
+        end
+      }
+      nil
+    end
+
     def smooth_new_edges(entities, &block)
       new_edges = detect_new_edges(entities, &block)
       new_edges.each { |edge|
