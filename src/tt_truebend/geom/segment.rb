@@ -4,15 +4,15 @@ module TT::Plugins::TrueBend
     attr_reader :points
 
     def initialize(point1, point2)
-      @points = [point1, point2]
+      @points = [point1.clone, point2.clone]
     end
 
     def start
-      @points[0]
+      @points.first
     end
 
     def end
-      @points[1]
+      @points.last
     end
 
     def intersect_plane(plane)
@@ -40,7 +40,12 @@ module TT::Plugins::TrueBend
     def split(plane)
       point = intersect_plane(plane)
       return [self] if point.nil?
-      [Segment.new(@points[0], point), Segment.new(point, @points[1])]
+      [self.class.new(@points[0], point), self.class.new(point, @points[1])]
+    end
+
+    def transform(transformation)
+      pt1, pt2 = @points.map { |point| point.transform(transformation) }
+      self.class.new(pt1, pt2)
     end
 
     def transform!(transformation)

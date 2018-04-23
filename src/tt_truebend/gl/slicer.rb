@@ -3,14 +3,8 @@ require 'tt_truebend/geom/segment'
 module TT::Plugins::TrueBend
   class Slicer
 
-    # Transformation applied to the result of `segment_points` to transform into
-    # world coordinates.
-    attr_accessor :transformation
-
-    def initialize(instance)
-      @instance = instance
-      @planes = []
-      @transformation = nil
+    def initialize(planes = [])
+      @planes = planes
     end
 
     # The planes should be in world coordinates.
@@ -18,17 +12,18 @@ module TT::Plugins::TrueBend
       @planes << plane
     end
 
-    def slice
-      entities = @instance.definition.entities
+    def slice(instance)
+      entities = instance.definition.entities
 
       # The slicing group is created as a sibling to the instance being sliced.
       # Don't want to create it inside the instance being sliced as it should
       # not intersect itself.
-      slice_group = @instance.parent.entities.add_group
+      # `instance.parent` will be either `Model` or `ComponentDefinition`.
+      slice_group = instance.parent.entities.add_group
 
       # Create faces slicing through the instance. The faces are made large
       # enough to fully intersect the instance.
-      bounds = BoundingBoxWidget.new(@instance)
+      bounds = BoundingBoxWidget.new(instance)
       n = bounds.diagonal
       w = bounds.diagonal * 3
       quad = [
@@ -45,6 +40,32 @@ module TT::Plugins::TrueBend
         slice_group.entities.add_face(points)
       }
 
+      # Intersect the entities in the instance with the slicing planes.
+      transformation = instance.transformation
+      plane_entities = slice_group.entities
+      intersect_planes(entities, transformation, plane_entities) { |edge|
+        yield edge
+      }
+
+      slice_group.erase!
+    end
+
+    def segment_points(entities, transformation = IDENTITY)
+      original_segments = edge_segments(entities, transformation)
+      segments = slice_segments(original_segments, @planes)
+      points = segments.map(&:points).flatten
+      # Child instances:
+      entities.each { |entity|
+        next unless instance?(entity)
+        tr = transformation * entity.transformation
+        points.concat(segment_points(entity.definition.entities, tr))
+      }
+      points
+    end
+
+    private
+
+    def intersect_planes(entities, transformation, plane_entities)
       # The new edges from the intersection is created in a temporary group so
       # it is possible to apply various properties to them. If the edges are
       # created directly in the definition then its not possible to determine
@@ -52,34 +73,43 @@ module TT::Plugins::TrueBend
       # splitting an existing edge.
       temp = entities.add_group
       entities.intersect_with(
-        false,
-        @instance.transformation,
-        temp.entities,
-        @instance.transformation,
-        false,
-        slice_group.entities.to_a
+        false, # recurse - must be off for desired result.
+        transformation,
+        temp.entities, # target Entities collection
+        transformation,
+        false, # hidden
+        plane_entities.to_a # Array of entities to intersect `entities` with.
       )
       temp.entities.grep(Sketchup::Edge) { |edge| yield edge }
       temp.explode
-
-      slice_group.erase!
+      # Child instances:
+      # The `recurse` parameter of `intersect_with` doesn't yield correct.
+      # result. Undesired additional edges appear.
+      # Instead we recurse manually.
+      entities.each { |entity|
+        next unless instance?(entity)
+        entity.make_unique
+        ents = entity.definition.entities
+        tr = transformation * entity.transformation
+        intersect_planes(ents, tr, plane_entities) { |edge|
+          yield edge
+        }
+      }
+      nil
     end
 
-    def segment_points
-      original_segments = edge_segments(@instance.definition.entities)
-      segments = slice_segments(original_segments, @planes)
-      segments.map(&:points).flatten
+    # TODO: Create mix-in module.
+    def instance?(entity)
+      entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
     end
 
-    private
-
-    def edge_segments(entities, wysiwyg: true)
+    def edge_segments(entities, transformation, wysiwyg: true)
       edges = entities.grep(Sketchup::Edge).reject { |edge|
         edge.hidden? || edge.soft? || !edge.layer.visible?
       }
       edges.map { |edge|
         segment = Segment.new(edge.start.position, edge.end.position)
-        segment.transform!(@transformation) if @transformation
+        segment.transform!(transformation)
         segment
       }
     end
