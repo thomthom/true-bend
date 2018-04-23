@@ -5,6 +5,7 @@ require 'tt_truebend/gl/grid'
 require 'tt_truebend/gl/slicer'
 require 'tt_truebend/gl/subdivided_segment'
 require 'tt_truebend/helpers/edge'
+require 'tt_truebend/helpers/instance'
 require 'tt_truebend/geom/polar_projection'
 require 'tt_truebend/geom/segment'
 
@@ -13,6 +14,7 @@ module TT::Plugins::TrueBend
 
     include DrawingHelper
     include EdgeHelper
+    include InstanceHelper
     include ViewConstants
 
     attr_reader :segment, :direction
@@ -332,50 +334,6 @@ module TT::Plugins::TrueBend
 
     private
 
-    # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
-    # @return [Sketchup::ComponentInstance, Sketchup::Group]
-    def ensure_groups_are_uniqe(instance)
-      if @instance.is_a?(Sketchup::Group)
-        @instance.make_unique
-      else
-        @instance
-      end
-    end
-
-    # TODO: Move to mix-in module.
-    def instance?(entity)
-      entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
-    end
-
-    # @param [Sketchup::View] view
-    # @param [Array<Geom::Point3d, Geom::Vector3d>] plane
-    # @param [Numeric] size
-    # @param [Sketchup::Color] color
-    # @return [nil]
-    # TODO: Move to drawing helper.
-    def draw_plane(view, plane, size, color)
-      color = Sketchup::Color.new(color)
-      points = [
-        Geom::Point3d.new(-0.5, -0.5, 0),
-        Geom::Point3d.new( 0.5, -0.5, 0),
-        Geom::Point3d.new( 0.5,  0.5, 0),
-        Geom::Point3d.new(-0.5,  0.5, 0),
-      ]
-      tr_scale = Geom::Transformation.scaling(size)
-      origin, z_axis = plane
-      tr_axes = Geom::Transformation.new(origin, z_axis)
-      tr = tr_axes * tr_scale
-      points.each { |pt| pt.transform!(tr) }
-      view.drawing_color = color
-      view.line_stipple = STIPPLE_LONG_DASH
-      view.line_width = 2
-      view.draw(GL_LINE_LOOP, points)
-      color.alpha = 0.1
-      view.drawing_color = color
-      view.draw(GL_QUADS, points)
-      nil
-    end
-
     # @param [Sketchup::Entities] entities
     # @param [Geom::Transformation] transformation
     # @return [nil]
@@ -408,7 +366,7 @@ module TT::Plugins::TrueBend
         next unless instance?(entity)
         # Assumes instance is unique already.
         tr = transformation * entity.transformation
-        project(entity.definition.entities, tr)
+        transform_polar(entity.definition.entities, tr)
       }
       nil
     end
@@ -416,7 +374,7 @@ module TT::Plugins::TrueBend
     # Create slicing planes which are perpendicular to the reference segment.
     #
     # @param [SubdividedSegmentWidget] segmenter
-    # @return [Array<Array<Geom::Point3d, Geom::Vector3d>>]
+    # @return [Array<Array(Geom::Point3d, Geom::Vector3d)>]
     def slicing_planes(segmenter)
       plane_normal = segmenter.segment.line[1]
       planes = segmenter.points.map { |point|
@@ -429,13 +387,9 @@ module TT::Plugins::TrueBend
     #
     # @return [Geom::Transformation]
     def world_to_segment_space
-      # TODO: Segment.transformation
       # TODO: Will the direction of the segment matter? Does it need to be
       #       sorted somehow?
-      segment_origin, x_axis = @segment.line
-      y_axis = x_axis.axes.x
-      z_axis = x_axis.axes.y
-      Geom::Transformation.axes(segment_origin, x_axis, y_axis, z_axis).inverse
+      @segment.transformation.inverse
     end
 
     # Return the full orientation of the two lines. Going counter-clockwise.

@@ -1,7 +1,11 @@
 require 'tt_truebend/geom/segment'
+require 'tt_truebend/helpers/instance'
+
 
 module TT::Plugins::TrueBend
   class Slicer
+
+    include InstanceHelper
 
     def initialize(planes = [])
       @planes = planes
@@ -96,11 +100,6 @@ module TT::Plugins::TrueBend
         }
       }
       nil
-    end
-
-    # TODO: Create mix-in module.
-    def instance?(entity)
-      entity.is_a?(Sketchup::Group) || entity.is_a?(Sketchup::ComponentInstance)
     end
 
     def edge_segments(entities, transformation, wysiwyg: true)
