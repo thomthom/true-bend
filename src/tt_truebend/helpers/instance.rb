@@ -6,10 +6,10 @@ module TT::Plugins::TrueBend
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     # @return [Sketchup::ComponentInstance, Sketchup::Group]
     def ensure_groups_are_uniqe(instance)
-      if @instance.is_a?(Sketchup::Group)
-        @instance.make_unique
+      if instance.is_a?(Sketchup::Group)
+        instance.make_unique
       else
-        @instance
+        instance
       end
     end
 

@@ -79,6 +79,10 @@ Layout/IndentationWidth:
 Layout/SpaceInsideArrayLiteralBrackets:
   Enabled: false
 
+# Spaces are fine to line up matrices etc to be more readable.
+Layout/SpaceInsideParens:
+  Enabled: false
+
 # Too noisy...
 Metrics/AbcSize:
   Enabled: false

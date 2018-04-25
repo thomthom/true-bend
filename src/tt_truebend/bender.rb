@@ -378,7 +378,7 @@ module TT::Plugins::TrueBend
     # @return [Array<Array(Geom::Point3d, Geom::Vector3d)>]
     def slicing_planes(segmenter)
       plane_normal = segmenter.segment.line[1]
-      planes = segmenter.points.map { |point|
+      segmenter.points.map { |point|
         [point.clone, plane_normal.clone]
       }
     end

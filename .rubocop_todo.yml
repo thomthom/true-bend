@@ -16,7 +16,7 @@ Lint/UnusedMethodArgument:
 # Offense count: 3
 # Configuration parameters: CountComments.
 Metrics/ClassLength:
-  Max: 259
+  Max: 262
 
 # Offense count: 8
 # Configuration parameters: CountComments.

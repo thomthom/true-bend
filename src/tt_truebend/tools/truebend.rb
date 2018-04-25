@@ -24,7 +24,7 @@ module TT::Plugins::TrueBend
         @cached_direction ||= @bender.direction
         @bender.bend(@cached_direction + direction)
       }
-      @manipulator.on_drag_complete { |direction|
+      @manipulator.on_drag_complete {
         @cached_direction = nil
       }
     end
@@ -139,7 +139,7 @@ module TT::Plugins::TrueBend
       view.invalidate
     end
 
-    def onLButtonDoubleClick(flags, x, y, view)
+    def onLButtonDoubleClick(_flags, _x, _y, _view)
       commit_bend
     end
 
