@@ -19,8 +19,13 @@ module TT::Plugins::TrueBend
 
       @manipulator = DragHandle.new(polygon.center, polygon.normal, color: 'red')
 
-      @manipulator.on_drag {
-        @bender.bend(@manipulator.direction)
+      @cached_direction = nil
+      @manipulator.on_drag { |direction|
+        @cached_direction ||= @bender.direction
+        @bender.bend(@cached_direction + direction)
+      }
+      @manipulator.on_drag_complete { |direction|
+        @cached_direction = nil
       }
     end
 

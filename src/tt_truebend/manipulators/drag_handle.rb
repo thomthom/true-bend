@@ -133,7 +133,7 @@ module TT::Plugins::TrueBend
       if @start_pick
         picked = pick_closest(x, y, view)
         @direction = @start_pick.vector_to(picked)
-        @events[:drag_complete].call if @events[:drag_complete]
+        @events[:drag_complete].call(@direction) if @events[:drag_complete]
       end
 
       @mouse_down_position = nil
@@ -147,7 +147,7 @@ module TT::Plugins::TrueBend
 
         picked = pick_closest(x, y, view)
         @direction = @start_pick.vector_to(picked)
-        @events[:drag].call if @events[:drag]
+        @events[:drag].call(@direction) if @events[:drag]
       else
         @drag = false
       end
