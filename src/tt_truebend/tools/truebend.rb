@@ -30,6 +30,22 @@ module TT::Plugins::TrueBend
     end
 
     def getMenu(menu)
+      id = menu.add_item('Commit') {
+        commit_bend
+      }
+      menu.set_validation_proc(id)  {
+        @bender.can_bend? ? MF_ENABLED : MF_DISABLED | MF_GRAYED
+      }
+
+      id = menu.add_item('Cancel') {
+        reset_bend(Sketchup.active_model.active_view)
+      }
+      menu.set_validation_proc(id)  {
+        @bender.can_bend? ? MF_ENABLED : MF_DISABLED | MF_GRAYED
+      }
+
+      menu.add_separator
+
       id = menu.add_item('Segmented') {
         @bender.segmented = !@bender.segmented
       }
@@ -72,19 +88,11 @@ module TT::Plugins::TrueBend
     end
 
     def onReturn(_view)
-      return unless @bender.can_bend?
-      model = Sketchup.active_model
-      model.start_operation('Bend', true)
-      @bender.commit
-      model.commit_operation
-      model.tools.pop_tool
+      commit_bend
     end
 
     def onCancel(_reason, view)
-      @bender.reset
-      @manipulator.reset
-      update_ui
-      view.invalidate
+      reset_bend(view)
     end
 
     def onUserText(text, view)
@@ -131,6 +139,10 @@ module TT::Plugins::TrueBend
       view.invalidate
     end
 
+    def onLButtonDoubleClick(flags, x, y, view)
+      commit_bend
+    end
+
     def onMouseMove(flags, x, y, view)
       @manipulator.onMouseMove(flags, x, y, view)
       update_ui
@@ -151,6 +163,22 @@ module TT::Plugins::TrueBend
     end
 
     private
+
+    def commit_bend
+      return unless @bender.can_bend?
+      model = Sketchup.active_model
+      model.start_operation('Bend', true)
+      @bender.commit
+      model.commit_operation
+      model.tools.pop_tool
+    end
+
+    def reset_bend(view)
+      @bender.reset
+      @manipulator.reset
+      update_ui
+      view.invalidate
+    end
 
     def bend_by_distance?
       @bend_by_distance
