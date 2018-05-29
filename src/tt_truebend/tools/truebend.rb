@@ -1,6 +1,7 @@
 require 'tt_truebend/constants/boundingbox'
 require 'tt_truebend/gl/boundingbox'
 require 'tt_truebend/manipulators/drag_handle'
+require 'tt_truebend/app_settings'
 require 'tt_truebend/bender'
 
 module TT::Plugins::TrueBend
@@ -158,7 +159,7 @@ module TT::Plugins::TrueBend
 
     def draw(view)
       @bender.draw(view)
-      @boundingbox.draw(view)
+      @boundingbox.draw(view) if SETTINGS.debug_draw_boundingbox?
       @manipulator.draw(view)
     end
 

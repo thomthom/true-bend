@@ -2,6 +2,7 @@ require 'sketchup.rb'
 
 require 'tt_truebend/helpers/instance'
 require 'tt_truebend/tools/truebend'
+require 'tt_truebend/app_settings'
 require 'tt_truebend/debug'
 
 module TT::Plugins::TrueBend

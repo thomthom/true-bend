@@ -8,6 +8,7 @@ require 'tt_truebend/helpers/edge'
 require 'tt_truebend/helpers/instance'
 require 'tt_truebend/geom/polar_projection'
 require 'tt_truebend/geom/segment'
+require 'tt_truebend/app_settings'
 
 module TT::Plugins::TrueBend
   class Bender
@@ -240,19 +241,23 @@ module TT::Plugins::TrueBend
         tr_to_segment_space = world_to_segment_space
 
         # Global Mesh
-        # view.line_stipple = STIPPLE_SOLID
-        # view.line_width = 2
-        # view.drawing_color = 'orange'
-        # view.draw(GL_LINES, mesh_points)
-        # view.draw_points(mesh_points, 4, DRAW_FILLED_SQUARE, 'orange')
+        if SETTINGS.debug_draw_global_mesh?
+          view.line_stipple = STIPPLE_SOLID
+          view.line_width = 2
+          view.drawing_color = 'orange'
+          view.draw(GL_LINES, mesh_points)
+          view.draw_points(mesh_points, 4, DRAW_FILLED_SQUARE, 'orange')
+        end
 
         # Local Mesh
-        # local_mesh = mesh_points.map { |pt| pt.transform(tr) }
-        # view.line_stipple = STIPPLE_SOLID
-        # view.line_width = 2
-        # view.drawing_color = 'purple'
-        # view.draw(GL_LINES, local_mesh)
-        # view.draw_points(local_mesh, 4, DRAW_FILLED_SQUARE, 'purple')
+        if SETTINGS.debug_draw_local_mesh?
+          local_mesh = mesh_points.map { |pt| pt.transform(tr) }
+          view.line_stipple = STIPPLE_SOLID
+          view.line_width = 2
+          view.drawing_color = 'purple'
+          view.draw(GL_LINES, local_mesh)
+          view.draw_points(local_mesh, 4, DRAW_FILLED_SQUARE, 'purple')
+        end
 
         # Global Bent Mesh
         polar_mesh_points = mesh_points.map { |pt|
@@ -264,15 +269,14 @@ module TT::Plugins::TrueBend
         view.drawing_color = 'maroon'
         view.draw(GL_LINES, bent_mesh)
         view.draw_points(bent_mesh, 4, DRAW_FILLED_SQUARE, 'maroon')
-        # slicer.draw(view)
 
         # Slice Planes
-        # planes.each { |plane|
-        #   draw_plane(view, plane, 1.m, 'green')
-
-        #   local_plane = plane.map { |n| n.transform(tr_to_segment_space) }
-        #   draw_plane(view, local_plane, 1.m, 'red')
-        # }
+        if SETTINGS.debug_draw_local_mesh?
+          planes.each { |plane|
+            local_plane = plane.map { |n| n.transform(tr_to_segment_space) }
+            draw_plane(view, local_plane, 1.m, 'red')
+          }
+        end
       end
 
       # Debug
@@ -319,17 +323,21 @@ module TT::Plugins::TrueBend
         a = full_angle_between(v1, v2)
         fa = Sketchup.format_angle(a)
         pt = view.screen_coords(origin)
-        view.draw_text(pt, "#{fa}° (#{degrees}°)", options)
+        text = "#{fa}°"
+        text << " (#{degrees}°)" if SETTINGS.debug_draw_debug_info?
+        view.draw_text(pt, text, options)
 
-        # Curve Length
-        pt = view.screen_coords(polar_points.first)
-        options[:color] = 'red'
-        view.draw_text(pt, "#{length} (#{arc_length})", options)
+        if SETTINGS.debug_draw_debug_info?
+          # Curve Length
+          pt = view.screen_coords(polar_points.first)
+          options[:color] = 'red'
+          view.draw_text(pt, "#{length} (#{arc_length})", options)
 
-        # Segment Length
-        pt = view.screen_coords(@segment.points.last)
-        options[:color] = 'green'
-        view.draw_text(pt, @segment.length.to_s, options)
+          # Segment Length
+          pt = view.screen_coords(@segment.points.last)
+          options[:color] = 'green'
+          view.draw_text(pt, @segment.length.to_s, options)
+        end
       end
     end
 
