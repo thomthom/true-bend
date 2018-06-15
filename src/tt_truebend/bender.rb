@@ -203,11 +203,7 @@ module TT::Plugins::TrueBend
 
       # Projected reference segment
       polar_points = bend_points(@segmenter.points)
-      view.line_stipple = STIPPLE_SOLID
-      view.line_width = @segmenter.line_width
-      view.drawing_color = 'red'
-      view.draw(GL_LINE_STRIP, polar_points)
-      view.draw_points(polar_points, 6, DRAW_FILLED_SQUARE, 'red')
+      draw_projected_reference_segment(view, polar_points)
 
       # Reference grid
       view.drawing_color = 'green'
@@ -215,20 +211,12 @@ module TT::Plugins::TrueBend
 
       # Projected grid
       if @direction.valid?
-        # Grid
-        bounds = BoundingBoxWidget.new(@instance)
-        grid = Grid.new(bounds.width, bounds.height)
-        grid.x_subdivs = @segmenter.subdivisions
-
         x_axis = origin.vector_to(polar_points.last)
         projection = PolarProjection.new(radius)
         projection.axes(origin, x_axis)
-        arc_grid = projection.project(grid.segment_points, convex?)
 
-        view.line_stipple = STIPPLE_LONG_DASH
-        view.line_width = 1
-        view.drawing_color = 'red'
-        view.draw(GL_LINES, lift(view, arc_grid))
+        # Grid
+        draw_projected_grid(view, projection)
 
         # Mesh
         planes = slicing_planes(@segmenter)
@@ -242,21 +230,13 @@ module TT::Plugins::TrueBend
 
         # Global Mesh
         if SETTINGS.debug_draw_global_mesh?
-          view.line_stipple = STIPPLE_SOLID
-          view.line_width = 2
-          view.drawing_color = 'orange'
-          view.draw(GL_LINES, mesh_points)
-          view.draw_points(mesh_points, 4, DRAW_FILLED_SQUARE, 'orange')
+          draw_mesh(view, mesh_points, 'orange')
         end
 
         # Local Mesh
         if SETTINGS.debug_draw_local_mesh?
           local_mesh = mesh_points.map { |pt| pt.transform(tr) }
-          view.line_stipple = STIPPLE_SOLID
-          view.line_width = 2
-          view.drawing_color = 'purple'
-          view.draw(GL_LINES, local_mesh)
-          view.draw_points(local_mesh, 4, DRAW_FILLED_SQUARE, 'purple')
+          draw_mesh(view, local_mesh, 'purple')
         end
 
         # Global Bent Mesh
@@ -264,84 +244,110 @@ module TT::Plugins::TrueBend
           pt.transform(tr_to_segment_space)
         }
         bent_mesh = projection.project(polar_mesh_points, convex?, segment_angle)
-        view.line_stipple = STIPPLE_SOLID
-        view.line_width = 2
-        view.drawing_color = 'maroon'
-        view.draw(GL_LINES, bent_mesh)
-        view.draw_points(bent_mesh, 4, DRAW_FILLED_SQUARE, 'maroon')
+        draw_mesh(view, bent_mesh, 'marron')
 
         # Slice Planes
-        if SETTINGS.debug_draw_local_mesh?
-          planes.each { |plane|
-            local_plane = plane.map { |n| n.transform(tr_to_segment_space) }
-            draw_plane(view, local_plane, 1.m, 'red')
-          }
-        end
-      end
+        draw_debug_planes(view, planes, tr_to_segment_space)
 
-      # Debug
-
-      if @direction.valid?
-        # Information
-        length = curve_length(polar_points)
-        degrees = Sketchup.format_angle(angle)
-        view.tooltip = "Radius: #{radius}\nAngle: #{degrees}\nLength: #{@segment.length} (#{length})"
-
-        options = {
-          font: 'Arial',
-          size: 10,
-          bold: true,
-          color: 'purple'
-        }
-
-        mid = @segmenter.segment.mid_point
-
-        # Radius segment
-        view.line_stipple = STIPPLE_SOLID
-        view.line_width = 1
-        view.draw_points([mid, origin], 6, DRAW_CROSS, 'purple')
-
-        view.line_stipple = STIPPLE_SHORT_DASH
-        view.drawing_color = 'purple'
-        view.draw(GL_LINES, [mid, origin])
-
-        # Pie end segments
-        view.drawing_color = 'purple'
-        view.line_stipple = STIPPLE_LONG_DASH
-        view.line_width = 2
-        view.draw(GL_LINES, [origin, polar_points.first])
-        view.line_width = 1
-        view.draw(GL_LINES, [origin, polar_points.last])
-
-        # Radius
-        pt = view.screen_coords(Segment.new(mid, origin).mid_point)
-        view.draw_text(pt, radius.to_s, options)
-
-        # Angle
-        v1 = origin.vector_to(polar_points.first)
-        v2 = origin.vector_to(polar_points.last)
-        a = full_angle_between(v1, v2)
-        fa = Sketchup.format_angle(a)
-        pt = view.screen_coords(origin)
-        text = "#{fa}°"
-        text << " (#{degrees}°)" if SETTINGS.debug_draw_debug_info?
-        view.draw_text(pt, text, options)
-
-        if SETTINGS.debug_draw_debug_info?
-          # Curve Length
-          pt = view.screen_coords(polar_points.first)
-          options[:color] = 'red'
-          view.draw_text(pt, "#{length} (#{arc_length})", options)
-
-          # Segment Length
-          pt = view.screen_coords(@segment.points.last)
-          options[:color] = 'green'
-          view.draw_text(pt, @segment.length.to_s, options)
-        end
+        draw_bend_info(view, polar_points)
       end
     end
 
     private
+
+    def draw_projected_reference_segment(view, points)
+      view.line_stipple = STIPPLE_SOLID
+      view.line_width = @segmenter.line_width
+      view.drawing_color = 'red'
+      view.draw(GL_LINE_STRIP, points)
+      view.draw_points(points, 6, DRAW_FILLED_SQUARE, 'red')
+    end
+
+    def draw_projected_grid(view, projection)
+      bounds = BoundingBoxWidget.new(@instance)
+      grid = Grid.new(bounds.width, bounds.height)
+      grid.x_subdivs = @segmenter.subdivisions
+      arc_grid = projection.project(grid.segment_points, convex?)
+      view.line_stipple = STIPPLE_LONG_DASH
+      view.line_width = 1
+      view.drawing_color = 'red'
+      view.draw(GL_LINES, lift(view, arc_grid))
+    end
+
+    def draw_mesh(view, points, color)
+      view.line_stipple = STIPPLE_SOLID
+      view.line_width = 2
+      view.drawing_color = color
+      view.draw(GL_LINES, points)
+      view.draw_points(points, 4, DRAW_FILLED_SQUARE, color)
+    end
+
+    def draw_bend_info(view, polar_points)
+      # Information
+      length = curve_length(polar_points)
+      degrees = Sketchup.format_angle(angle)
+      view.tooltip = "Radius: #{radius}\nAngle: #{degrees}\nLength: #{@segment.length} (#{length})"
+
+      options = {
+        font: 'Arial',
+        size: 10,
+        bold: true,
+        color: 'purple'
+      }
+
+      mid = @segmenter.segment.mid_point
+
+      # Radius segment
+      view.line_stipple = STIPPLE_SOLID
+      view.line_width = 1
+      view.draw_points([mid, origin], 6, DRAW_CROSS, 'purple')
+
+      view.line_stipple = STIPPLE_SHORT_DASH
+      view.drawing_color = 'purple'
+      view.draw(GL_LINES, [mid, origin])
+
+      # Pie end segments
+      view.drawing_color = 'purple'
+      view.line_stipple = STIPPLE_LONG_DASH
+      view.line_width = 2
+      view.draw(GL_LINES, [origin, polar_points.first])
+      view.line_width = 1
+      view.draw(GL_LINES, [origin, polar_points.last])
+
+      # Radius
+      pt = view.screen_coords(Segment.new(mid, origin).mid_point)
+      view.draw_text(pt, radius.to_s, options)
+
+      # Angle
+      v1 = origin.vector_to(polar_points.first)
+      v2 = origin.vector_to(polar_points.last)
+      a = full_angle_between(v1, v2)
+      fa = Sketchup.format_angle(a)
+      pt = view.screen_coords(origin)
+      text = "#{fa}°"
+      text << " (#{degrees}°)" if SETTINGS.debug_draw_debug_info?
+      view.draw_text(pt, text, options)
+
+      if SETTINGS.debug_draw_debug_info?
+        # Curve Length
+        pt = view.screen_coords(polar_points.first)
+        options[:color] = 'red'
+        view.draw_text(pt, "#{length} (#{arc_length})", options)
+
+        # Segment Length
+        pt = view.screen_coords(@segment.points.last)
+        options[:color] = 'green'
+        view.draw_text(pt, @segment.length.to_s, options)
+      end
+    end
+
+    def draw_debug_planes(view, planes, tr_to_segment_space)
+      return unless SETTINGS.debug_draw_local_mesh?
+      planes.each { |plane|
+        local_plane = plane.map { |n| n.transform(tr_to_segment_space) }
+        draw_plane(view, local_plane, 1.m, 'red')
+      }
+    end
 
     # @param [Sketchup::Entities] entities
     # @param [Geom::Transformation] transformation
