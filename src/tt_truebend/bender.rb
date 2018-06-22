@@ -1,4 +1,5 @@
 require 'tt_truebend/constants/view'
+require 'tt_truebend/gl/bender_drawer'
 require 'tt_truebend/gl/boundingbox'
 require 'tt_truebend/gl/drawing_helper'
 require 'tt_truebend/gl/grid'
@@ -13,6 +14,7 @@ require 'tt_truebend/app_settings'
 module TT::Plugins::TrueBend
   class Bender
 
+    include BenderDrawer
     include DrawingHelper
     include EdgeHelper
     include InstanceHelper
@@ -20,6 +22,13 @@ module TT::Plugins::TrueBend
 
     attr_reader :segment, :direction
     attr_accessor :segmented, :soft_smooth
+
+    TEXT_OPTIONS = {
+      font: 'Arial',
+      size: 10,
+      bold: true,
+      color: 'purple'
+    }.freeze
 
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     # @param [Segment] segment The reference segment for the bend.
@@ -203,150 +212,68 @@ module TT::Plugins::TrueBend
 
       # Projected reference segment
       polar_points = bend_points(@segmenter.points)
-      draw_projected_reference_segment(view, polar_points)
+      draw_projected_reference_segment(view, polar_points, @segmenter.line_width)
 
       # Reference grid
       view.drawing_color = 'green'
       @grid.draw(view)
 
+      # No need to draw anything else unless there is a bend.
+      return unless @direction.valid?
+
+      # Set up the projection.
+      x_axis = origin.vector_to(polar_points.last)
+      projection = PolarProjection.new(radius)
+      projection.axes(origin, x_axis)
+
       # Projected grid
-      if @direction.valid?
-        x_axis = origin.vector_to(polar_points.last)
-        projection = PolarProjection.new(radius)
-        projection.axes(origin, x_axis)
+      draw_projected_grid(view, @instance, projection, @segmenter, convex?)
 
-        # Grid
-        draw_projected_grid(view, projection)
+      # Projected mesh
+      planes = slicing_planes(@segmenter)
+      mesh_points = slice_mesh(@instance, planes)
+      bent_mesh = bend_mesh(mesh_points, projection, convex?, segment_angle)
 
-        # Mesh
-        planes = slicing_planes(@segmenter)
-        slicer = Slicer.new(planes)
-        entities = @instance.definition.entities
-        mesh_points = slicer.segment_points(entities, @instance.transformation)
+      draw_mesh(view, bent_mesh, 'maroon')
 
-        # Polar project must be done in a coordinate system local to the
-        # reference segment.
-        tr_to_segment_space = world_to_segment_space
+      draw_debug_global_mesh(view, mesh_points)
+      draw_debug_local_mesh(view, mesh_points, @instance.transformation.inverse)
+      draw_debug_planes(view, planes, world_to_segment_space)
 
-        # Global Mesh
-        if SETTINGS.debug_draw_global_mesh?
-          draw_mesh(view, mesh_points, 'orange')
-        end
+      # Bend information
+      length = curve_length(polar_points)
+      degrees = Sketchup.format_angle(angle)
+      segment_mid_point = @segmenter.segment.mid_point
+      draw_bend_info(view, polar_points, [origin, segment_mid_point], degrees)
+      draw_debug_bend_info(view, polar_points, length, arc_length, @segment)
 
-        # Local Mesh
-        if SETTINGS.debug_draw_local_mesh?
-          local_mesh = mesh_points.map { |pt| pt.transform(tr) }
-          draw_mesh(view, local_mesh, 'purple')
-        end
-
-        # Global Bent Mesh
-        polar_mesh_points = mesh_points.map { |pt|
-          pt.transform(tr_to_segment_space)
-        }
-        bent_mesh = projection.project(polar_mesh_points, convex?, segment_angle)
-        draw_mesh(view, bent_mesh, 'maroon')
-
-        # Slice Planes
-        draw_debug_planes(view, planes, tr_to_segment_space)
-
-        draw_bend_info(view, polar_points)
-      end
+      view.tooltip = "Radius: #{radius}\nAngle: #{degrees}\nLength: #{@segment.length} (#{length})"
     end
 
     private
 
-    def draw_projected_reference_segment(view, points)
-      view.line_stipple = STIPPLE_SOLID
-      view.line_width = @segmenter.line_width
-      view.drawing_color = 'red'
-      view.draw(GL_LINE_STRIP, points)
-      view.draw_points(points, 6, DRAW_FILLED_SQUARE, 'red')
+    # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
+    # @param [Array<Array(Geom::Point3d, Geom::Vector3d)>] planes
+    # @return [Array<Geom::Point3d>]
+    def slice_mesh(instance, planes)
+      slicer = Slicer.new(planes)
+      entities = instance.definition.entities
+      slicer.segment_points(entities, instance.transformation)
     end
 
-    def draw_projected_grid(view, projection)
-      bounds = BoundingBoxWidget.new(@instance)
-      grid = Grid.new(bounds.width, bounds.height)
-      grid.x_subdivs = @segmenter.subdivisions
-      arc_grid = projection.project(grid.segment_points, convex?)
-      view.line_stipple = STIPPLE_LONG_DASH
-      view.line_width = 1
-      view.drawing_color = 'red'
-      view.draw(GL_LINES, lift(view, arc_grid))
-    end
-
-    def draw_mesh(view, points, color)
-      view.line_stipple = STIPPLE_SOLID
-      view.line_width = 2
-      view.drawing_color = color
-      view.draw(GL_LINES, points)
-      view.draw_points(points, 4, DRAW_FILLED_SQUARE, color)
-    end
-
-    def draw_bend_info(view, polar_points)
-      # Information
-      length = curve_length(polar_points)
-      degrees = Sketchup.format_angle(angle)
-      view.tooltip = "Radius: #{radius}\nAngle: #{degrees}\nLength: #{@segment.length} (#{length})"
-
-      options = {
-        font: 'Arial',
-        size: 10,
-        bold: true,
-        color: 'purple'
+    # @param [Array<Geom::Point3d>] mesh_points
+    # @param [Projection] projection
+    # @param [Boolean] is_convex
+    # @param [Float] segment_angle
+    # @return [Array<Geom::Point3d>]
+    def bend_mesh(mesh_points, projection, is_convex, segment_angle)
+      # Polar project must be done in a coordinate system local to the
+      # reference segment.
+      tr_to_segment_space = world_to_segment_space
+      polar_mesh_points = mesh_points.map { |point|
+        point.transform(tr_to_segment_space)
       }
-
-      mid = @segmenter.segment.mid_point
-
-      # Radius segment
-      view.line_stipple = STIPPLE_SOLID
-      view.line_width = 1
-      view.draw_points([mid, origin], 6, DRAW_CROSS, 'purple')
-
-      view.line_stipple = STIPPLE_SHORT_DASH
-      view.drawing_color = 'purple'
-      view.draw(GL_LINES, [mid, origin])
-
-      # Pie end segments
-      view.drawing_color = 'purple'
-      view.line_stipple = STIPPLE_LONG_DASH
-      view.line_width = 2
-      view.draw(GL_LINES, [origin, polar_points.first])
-      view.line_width = 1
-      view.draw(GL_LINES, [origin, polar_points.last])
-
-      # Radius
-      pt = view.screen_coords(Segment.new(mid, origin).mid_point)
-      view.draw_text(pt, radius.to_s, options)
-
-      # Angle
-      v1 = origin.vector_to(polar_points.first)
-      v2 = origin.vector_to(polar_points.last)
-      a = full_angle_between(v1, v2)
-      fa = Sketchup.format_angle(a)
-      pt = view.screen_coords(origin)
-      text = "#{fa}°"
-      text << " (#{degrees}°)" if SETTINGS.debug_draw_debug_info?
-      view.draw_text(pt, text, options)
-
-      if SETTINGS.debug_draw_debug_info?
-        # Curve Length
-        pt = view.screen_coords(polar_points.first)
-        options[:color] = 'red'
-        view.draw_text(pt, "#{length} (#{arc_length})", options)
-
-        # Segment Length
-        pt = view.screen_coords(@segment.points.last)
-        options[:color] = 'green'
-        view.draw_text(pt, @segment.length.to_s, options)
-      end
-    end
-
-    def draw_debug_planes(view, planes, tr_to_segment_space)
-      return unless SETTINGS.debug_draw_local_mesh?
-      planes.each { |plane|
-        local_plane = plane.map { |n| n.transform(tr_to_segment_space) }
-        draw_plane(view, local_plane, 1.m, 'red')
-      }
+      projection.project(polar_mesh_points, is_convex, segment_angle)
     end
 
     # @param [Sketchup::Entities] entities
