@@ -244,7 +244,7 @@ module TT::Plugins::TrueBend
           pt.transform(tr_to_segment_space)
         }
         bent_mesh = projection.project(polar_mesh_points, convex?, segment_angle)
-        draw_mesh(view, bent_mesh, 'marron')
+        draw_mesh(view, bent_mesh, 'maroon')
 
         # Slice Planes
         draw_debug_planes(view, planes, tr_to_segment_space)
