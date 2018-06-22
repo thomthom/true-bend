@@ -43,7 +43,7 @@ module TT::Plugins::TrueBend
       @segmenter.subdivisions = 24
       # Toggles whether the bend adhere to true curve or segmented curve.
       @segmented = true
-      # Toogles whether to soften & smooth the edges created to subdivide the
+      # Toggles whether to soften & smooth the edges created to subdivide the
       # mesh for the bending.
       @soft_smooth = true
 
@@ -224,7 +224,7 @@ module TT::Plugins::TrueBend
         entities = @instance.definition.entities
         mesh_points = slicer.segment_points(entities, @instance.transformation)
 
-        # Polar project must be done in a cooridinate system local to the
+        # Polar project must be done in a coordinate system local to the
         # reference segment.
         tr_to_segment_space = world_to_segment_space
 
