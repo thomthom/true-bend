@@ -61,52 +61,19 @@ module TT::Plugins::TrueBend
     end
 
     def draw(view)
-      points = handle_points(view)
-      if @mouse_down_position && @direction && @direction.valid?
-        points.last.offset!(@direction)
-      end
-
-      view.line_stipple = STIPPLE_SOLID
-      view.line_width = mouse_over?(view) ? 3 : 2
-      view.drawing_color = @color
-      view.draw(GL_LINES, points)
-
-      view.draw_points(points, 6, DRAW_FILLED_SQUARE, @color)
+      draw_handle(view)
 
       return unless debug
 
       if @mouse_down_position && @direction
-        target = @origin.clone
-        target.offset!(@direction) if @direction.valid?
-        view.line_stipple = STIPPLE_SOLID
-        view.draw_points([target], 10, DRAW_FILLED_TRIANGLE, @color)
+        draw_direction(view)
       end
 
       if @mouse_down_position
-        debug_points = [@mouse_down_position, @mouse_position]
-
-        view.line_width = 1
-        view.draw_points(debug_points, 6, DRAW_CROSS, 'purple')
-
-        view.line_stipple = STIPPLE_SHORT_DASH
-        view.drawing_color = 'purple'
-        view.draw2d(GL_LINES, debug_points)
-
-        if @start_pick
-          view.line_stipple = STIPPLE_SOLID
-          view.draw_points([@start_pick], 10, DRAW_PLUS, 'purple')
-        end
+        draw_mouse_pick(view)
       end
 
-      x, y = *@mouse_position.to_a
-      handle = handle_points(view)
-      pick_ray = view.pickray(x, y)
-      points = Geom.closest_points(handle, pick_ray)
-      view.line_width = 1
-      view.draw_points(points, 6, DRAW_CROSS, 'green')
-      view.line_stipple = STIPPLE_SHORT_DASH
-      view.drawing_color = 'green'
-      view.draw(GL_LINES, points)
+      draw_handle_pick(view)
     end
 
 
@@ -154,6 +121,59 @@ module TT::Plugins::TrueBend
     end
 
     private
+
+    # @param [Sketchup::View] view
+    def draw_handle(view)
+      points = handle_points(view)
+      if @mouse_down_position && @direction && @direction.valid?
+        points.last.offset!(@direction)
+      end
+
+      view.line_stipple = STIPPLE_SOLID
+      view.line_width = mouse_over?(view) ? 3 : 2
+      view.drawing_color = @color
+      view.draw(GL_LINES, points)
+
+      view.draw_points(points, 6, DRAW_FILLED_SQUARE, @color)
+    end
+
+    # @param [Sketchup::View] view
+    def draw_direction(view)
+      target = @origin.clone
+      target.offset!(@direction) if @direction.valid?
+      view.line_stipple = STIPPLE_SOLID
+      view.draw_points([target], 10, DRAW_FILLED_TRIANGLE, @color)
+    end
+
+    # @param [Sketchup::View] view
+    def draw_mouse_pick(view)
+      debug_points = [@mouse_down_position, @mouse_position]
+
+      view.line_width = 1
+      view.draw_points(debug_points, 6, DRAW_CROSS, 'purple')
+
+      view.line_stipple = STIPPLE_SHORT_DASH
+      view.drawing_color = 'purple'
+      view.draw2d(GL_LINES, debug_points)
+
+      return unless @start_pick
+
+      view.line_stipple = STIPPLE_SOLID
+      view.draw_points([@start_pick], 10, DRAW_PLUS, 'purple')
+    end
+
+    # @param [Sketchup::View] view
+    def draw_handle_pick(view)
+      x, y = *@mouse_position.to_a
+      handle = handle_points(view)
+      pick_ray = view.pickray(x, y)
+      points = Geom.closest_points(handle, pick_ray)
+      view.line_width = 1
+      view.draw_points(points, 6, DRAW_CROSS, 'green')
+      view.line_stipple = STIPPLE_SHORT_DASH
+      view.drawing_color = 'green'
+      view.draw(GL_LINES, points)
+    end
 
     # @return [Integer] Segment index.
     def pick_segment(x, y, view)
