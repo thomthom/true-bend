@@ -83,6 +83,10 @@ Layout/SpaceInsideArrayLiteralBrackets:
 Layout/SpaceInsideParens:
   Enabled: false
 
+# Need to rescue Exception for error logging.
+Lint/RescueException:
+  Enabled: false
+
 # Too noisy...
 Metrics/AbcSize:
   Enabled: false

@@ -1,1 +1,4 @@
+*.skb
+Backup of *.layout
+
 /Gemfile.lock
