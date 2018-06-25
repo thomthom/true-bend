@@ -59,7 +59,7 @@ module TT::Plugins::TrueBend
       polygons[index]
     end
 
-    def polygons
+    def polygons # rubocop:disable Metrics/MethodLength
       [
         Polygon.new(
           corner(BB_LEFT_FRONT_BOTTOM),

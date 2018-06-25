@@ -30,6 +30,7 @@ module TT::Plugins::TrueBend
       }
     end
 
+    # rubocop:disable Metrics/MethodLength
     def getMenu(menu)
       id = menu.add_item('Commit') {
         commit_bend
@@ -64,7 +65,11 @@ module TT::Plugins::TrueBend
           MF_DISABLED | MF_GRAYED | MF_CHECKED
         end
       }
+
+      add_debug_menus(menu)
+      true # `nil` or `false` will cause native menu to display.
     end
+    # rubocop:enable Metrics/MethodLength
 
     def enableVCB?
       true
@@ -164,6 +169,32 @@ module TT::Plugins::TrueBend
     end
 
     private
+
+    # @param [Sketchup::Menu]
+    def add_debug_menus(menu)
+      return unless SETTINGS.debug?
+      menu.add_separator
+      add_setting_toggle(menu, :debug_draw_boundingbox)
+      add_setting_toggle(menu, :debug_draw_debug_info)
+      add_setting_toggle(menu, :debug_draw_local_mesh)
+      add_setting_toggle(menu, :debug_draw_global_mesh)
+      add_setting_toggle(menu, :debug_draw_slice_planes)
+    end
+
+    # @param [Sketchup::Menu] menu
+    # @param [Symbol] setting
+    def add_setting_toggle(menu, setting)
+      setter = "#{setting}=".to_sym
+      getter = "#{setting}?".to_sym
+      title = setting.to_s.split('_').map(&:capitalize).join(' ')
+      id = menu.add_item(title) {
+        SETTINGS.send(setter, !SETTINGS.send(getter))
+        Sketchup.active_model.active_view.invalidate
+      }
+      menu.set_validation_proc(id)  {
+        SETTINGS.send(getter) ? MF_CHECKED : MF_ENABLED
+      }
+    end
 
     def commit_bend
       return unless @bender.can_bend?

@@ -1,6 +1,8 @@
 module TT::Plugins::TrueBend
   module DrawingHelper
 
+    include ViewConstants
+
     # @param [Sketchup::View] view
     # @param [Array(Geom::Point3d, Geom::Vector3d)] plane
     # @param [Numeric] size

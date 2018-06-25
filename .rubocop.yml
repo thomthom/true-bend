@@ -99,8 +99,8 @@ Metrics/CyclomaticComplexity:
 
 # Allowing for a few more lines than the default 10.
 # TODO: Enable after addressing `rubocop_todo.yml`
-# Metrics/MethodLength:
-#   Max: 20
+Metrics/MethodLength:
+  Max: 30
 
 # Too noisy...
 Metrics/PerceivedComplexity:
