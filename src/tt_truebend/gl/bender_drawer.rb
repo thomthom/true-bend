@@ -146,7 +146,7 @@ module TT::Plugins::TrueBend
     # @param [Array<Array(Geom::Point3d, Geom::Vector3d)>] planes
     # @param [Geom::Transformation] tr_to_segment_space
     def draw_debug_planes(view, planes, tr_to_segment_space)
-      return unless SETTINGS.debug_draw_local_mesh?
+      return unless SETTINGS.debug_draw_slice_planes?
       planes.each { |plane|
         local_plane = plane.map { |n| n.transform(tr_to_segment_space) }
         draw_plane(view, local_plane, 1.m, 'red')

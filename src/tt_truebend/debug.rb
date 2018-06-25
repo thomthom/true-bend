@@ -1,5 +1,7 @@
 module TT::Plugins::TrueBend
 
+  # TT::Plugins::TrueBend::SETTINGS.debug = true
+
   # @note Debug method to reload the plugin.
   #
   # @example
