@@ -44,7 +44,6 @@ module TT::Plugins::TrueBend
     # TT::Plugins::TrueBend::SETTINGS.error_server = 'sketchup.thomthom.local'
     # TT::Plugins::TrueBend::SETTINGS.error_server = 'sketchup.thomthom.net'
     server = SETTINGS.error_server
-    library_path = File.join(PATH, 'vendor/heimdallr/error-reporter')
 
     config = {
       extension_id: EXTENSION[:product_id],
@@ -53,7 +52,7 @@ module TT::Plugins::TrueBend
       support_url:  'https://github.com/thomthom/true-bend',
       debug:        SETTINGS.debug?
     }
-    ERROR_REPORTER = ErrorReporter.new(config, library_path)
+    ERROR_REPORTER = ErrorReporter.new(config)
 
 
     ### Initialization ### -----------------------------------------------------

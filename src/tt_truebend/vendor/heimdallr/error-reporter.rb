@@ -11,20 +11,11 @@
 # capture everything and outputs to the Ruby Console.
 begin
 
-# There is no out of the box support for JSON on SketchUp 2013 and older which
-# shipped only with the core of Ruby 1.8.
-if RUBY_VERSION.to_i > 1
-  require "json"
-end
+require "json"
 
 
 module TT::Plugins::TrueBend
   class ErrorReporter
-
-    PLATFORM_OSX = (Object::RUBY_PLATFORM =~ /darwin/i) ? true : false
-    PLATFORM_WIN = !PLATFORM_OSX
-
-    HAS_EW_ID = Sketchup.version.to_i >= 13
 
     # @param [Hash] config
     # @option config [String] :extension_id
@@ -37,7 +28,7 @@ module TT::Plugins::TrueBend
     # @param [String] library_path Path to the extension's support folder.
     #   If the extension is named `hello-world.rb` the support folder is the
     #   matching `hello-world` folder.
-    def initialize(config, library_path)
+    def initialize(config)
       @extension_id = get_required_config(config, :extension_id)
       @extension    = get_required_config(config, :extension)
       @server       = get_required_config(config, :server)
@@ -46,7 +37,11 @@ module TT::Plugins::TrueBend
       @support_url  = config[:support_url]
       @window       = nil
       @events       = {}
-      @library_path = library_path
+      @enabled      = true
+      # Version string of available version. This is not set at construction
+      # time cause the check happens at a later stage once the app has had time
+      # to boot and load.
+      @available_version = nil
     rescue Exception => exception
       # Here we actually raise the exception because this happen during the
       # setup phase and should not be done as part of an exception handling.
@@ -55,21 +50,34 @@ module TT::Plugins::TrueBend
 
     # Pass the exception to the dialog, which afterwards re-raise it.
     #
+    def enable
+      @enabled = true
+    end
+
+    def enabled?
+      @enabled == true
+    end
+
+    def disable
+      @enabled = false
+    end
+
+    def disabled?
+      @enabled != true
+    end
+
     # @param [Exception] exception
     #
     # @return [Exception]
     def handle(exception)
-      show_dialog(exception)
+      show_dialog(exception) if enabled?
       raise exception
     end
 
-    # Pass the exception to the dialog, without re-raising.
-    #
-    # @param [Exception] exception
-    #
-    # @return [Exception]
-    def report(exception)
-      show_dialog(exception)
+
+    # @param [String] version
+    def available_version=(version)
+      @available_version = version
     end
 
 
@@ -100,10 +108,6 @@ module TT::Plugins::TrueBend
       "Heimdallr"
     end
 
-    # @return [String]
-    def asset_path
-      File.join(@library_path, 'error-reporter')
-    end
 
     # @param [Hash] config
     # @param [Symbol] key
@@ -146,12 +150,15 @@ module TT::Plugins::TrueBend
       @window = create_dialog(@extension_id, @extension)
       on("dialog_ready") { |dialog, data|
         setup_error_data(dialog, exception_to_handle)
+        if @available_version
+          call(dialog, "available_version", @available_version)
+        end
         dialog = nil
       }
       # It's necessary to hold on to a reference to the UI::WebDialog.
       # Otherwise it'll close if the garbage collector kicks in while it's
       # open.
-      if PLATFORM_OSX
+      if Sketchup.platform == :platform_osx
         @window.show_modal
       else
         @window.show
@@ -177,7 +184,7 @@ module TT::Plugins::TrueBend
 
         :extension => {
           :id => @extension_id,
-          :extension_warehouse_id => HAS_EW_ID ? @extension.id : '',
+          :extension_warehouse_id => @extension.id,
           :name => @extension.name,
           :version => @extension.version
         },
@@ -186,25 +193,25 @@ module TT::Plugins::TrueBend
           :inspect => exception.inspect,
           :type => exception.class.name,
           :message => exception.message,
-          :backtrace => exception.backtrace # TODO: Ruby 1.8 stack trace different?
+          :backtrace => exception.backtrace
         },
 
         :environment => {
           :sketchup => {
             :version => Sketchup.version,
-            :is_pro => sketchup_is_pro? ? 1 : 0, # `true` is POSTed as 0...
+            :is_pro => Sketchup.is_pro? ? 1 : 0, # `true` is POSTed as 0...
             :product_family => sketchup_product_family,
             :is_64bit => sketchup_is_64bit? ? 1 : 0,
             :locale => Sketchup.get_locale,
-            :platform => sketchup_platform.to_s
+            :platform => Sketchup.platform.to_s
           },
           :ruby => {
             :version => RUBY_VERSION,
             :platform => RUBY_PLATFORM,
-            :patch_level => defined?(RUBY_PATCHLEVEL) ? RUBY_PATCHLEVEL : 0
+            :patch_level => RUBY_PATCHLEVEL
           },
-          :loaded_features => get_utf8_list(loaded_features) || [],
-          :load_path => get_utf8_list($LOAD_PATH) || []
+          :loaded_features => get_utf8_list($LOADED_FEATURES),
+          :load_path => get_utf8_list($LOAD_PATH)
         }
       }
       call(window, "setup_error_data", error_data)
@@ -219,40 +226,11 @@ module TT::Plugins::TrueBend
       if window.nil? || !window.visible?
         raise RuntimeError, "Window must be visible before making calls to it"
       end
-      json_arguments = arguments.map { |argument| json(argument) }
+      json_arguments = arguments.map { |argument| argument.to_json }
       js_arguments = json_arguments.join(", ")
       js_command = "#{function}(#{js_arguments});"
       window.execute_script(js_command)
       true
-    end
-
-    def loaded_features
-      # It appear that older SketchUp versions return `nil` for
-      # `$LOADED_FEATURES` and instead populate `$loaded_files`. However, it
-      # also appear that `$loaded_files` isn't complete and updates during the
-      # session. Might want to remove this as it looks to be rather irrelevant.
-      $LOADED_FEATURES || $loaded_files
-    end
-
-    # @param [Hash] options
-    #
-    # @return [UI::WebDialog]
-    def new_webdialog(options)
-      if Sketchup.version.to_i < 7
-        arguments = [
-          options[:dialog_title],
-          options[:scrollable],
-          options[:preferences_key],
-          options[:width],
-          options[:height],
-          options[:left],
-          options[:top],
-          options[:resizable]
-        ]
-        UI::WebDialog.new(*arguments)
-      else
-        UI::WebDialog.new(options)
-      end
     end
 
     # @param [String] extension_id
@@ -268,9 +246,9 @@ module TT::Plugins::TrueBend
         :left             => 400,
         :top              => 400,
         :width            => 450,
-        :height           => 580
+        :height           => 640
       }
-      window = new_webdialog(options)
+      window = UI::WebDialog.new(options)
 
       # Hide the navigation buttons that appear on OSX.
       if window.respond_to?(:navigation_buttons_enabled=)
@@ -294,13 +272,10 @@ module TT::Plugins::TrueBend
       # The result is that the height is adjustable a little bit, but at least
       # it's restrained to be close to the desired size. Lesser evil until
       # this is fixed in SketchUp.
-      if window.respond_to?(:min_width)
-        # These methods where added in SU7.
-        window.min_width = options[:width]
-        window.max_width = options[:width]
-        window.min_height = options[:height] - 30
-        window.max_height = options[:height]
-      end
+      window.min_width = options[:width]
+      window.max_width = options[:width]
+      window.min_height = options[:height] - 30
+      window.max_height = options[:height]
       window.set_size(options[:width], options[:height])
 
       # Hook up callback bridge.
@@ -308,7 +283,7 @@ module TT::Plugins::TrueBend
         #puts "Callback: 'callback(#{event_name})'"
         json = dialog.get_element_value("SU_BRIDGE")
         if json && json.size > 0
-          data = parse_json(json)
+          data = JSON.parse(json)
         else
           data = nil
         end
@@ -317,6 +292,10 @@ module TT::Plugins::TrueBend
         # collected by the GC.
         event_name = data = dialog = nil
       }
+
+      # Need to reset the events in order to not trigger multiple times as the
+      # dialog class is reused.
+      @events = {}
 
       on("open_url") { |dialog, data|
         UI.openURL(data["url"])
@@ -341,15 +320,9 @@ module TT::Plugins::TrueBend
         dialog = data = nil
       }
 
-      # Cannot rely on __FILE__ or __dir__ to resolve paths due to issues with
-      # older SketchUp versions and RBS files. In newer versions __FILE__ will
-      # work, but __dir__ wont. Additionally, __FILE__ have encoding bugs under
-      # windows. So the encoding would have to be forced to account for this.
-      # TODO: Consider checking the encoding of the passed in path and attempt
-      # to fix it if possible.
-      html_file =File.join(asset_path, "error-reporter.html")
-      raise "#{html_file} not found" unless File.exist?(html_file)
-      window.set_file(html_file)
+      # It appear that __dir__ doesn't work in RBS files.
+      path = File.dirname(__FILE__)
+      window.set_file(File.join(path, "error-reporter", "error-reporter.html"))
       window
     end
 
@@ -379,55 +352,35 @@ module TT::Plugins::TrueBend
       Sketchup.respond_to?(:is_64bit?) && Sketchup.is_64bit?
     end
 
-    # @return [Boolean]
-    def sketchup_is_pro?
-      if Sketchup.respond_to?(:is_pro?)
-        Sketchup.is_pro?
-      else
-        # Sketchup.is_pro? was added in SU7.
-        Sketchup.app_name.include?('Pro')
-      end
-    end
-
     # For some reason +get_product_family+ was incorrectly placed on the
     # Sketchup::Model class - which means it will not be possible to access
     # if there are no models open under OSX.
     #
     # @return [Integer]
     def sketchup_product_family
-      model = Sketchup.active_model
-      if model && model.respond_to?(:get_product_family)
-        model.get_product_family
+      if Sketchup.active_model
+        Sketchup.active_model.get_product_family
       else
         0 # Unknown
       end
     end
 
-    # @return [Symbol]
-    def sketchup_platform
-      return Sketchup.platform if Sketchup.respond_to?(:platform)
-      PLATFORM_WIN ? :platform_win : :platform_osx
-    end
-
-    # @param [Array<String>]
+    # @param [Array<String>] enumerator
     #
     # @return [String]
     def get_utf8_list(enumerator)
-      return enumerator if enumerator.nil?
       enumerator.dup.map { |path|
         string = path.dup
-        if string.respond_to?(:encode)
-          begin
-            string.encode("UTF-8")
-          rescue
-            # Under Windows there are multiple strings relating to files that
-            # can have the incorrect encoding applied. They appear to generally
-            # be UTF-8 data with the wrong encoding label. To account for this we
-            # assume that any transcoding error to UTF-8 is a result of
-            # mis-labelled UTF-8 strings and then fall back to forcing the
-            # encoding.
-            string.force_encoding("UTF-8")
-          end
+        begin
+          string.encode("UTF-8")
+        rescue
+          # Under Windows there are multiple strings relating to files that
+          # can have the incorrect encoding applied. They appear to generally
+          # be UTF-8 data with the wrong encoding label. To account for this we
+          # assume that any transcoding error to UTF-8 is a result of
+          # mis-labelled UTF-8 strings and then fall back to forcing the
+          # encoding.
+          string.force_encoding("UTF-8")
         end
         string
       }
@@ -444,43 +397,10 @@ module TT::Plugins::TrueBend
     #
     # @return [Exception]
     def handle_unexpected_exception(exception)
-      SKETCHUP_CONSOLE.show if SKETCHUP_CONSOLE.respond_to?(:show)
+      SKETCHUP_CONSOLE.show
       p exception
       puts exception.backtrace.join("\n")
       exception
-    end
-
-    # Converts a Hash to an escaped JSON string.
-    #
-    # @param [Hash] hash
-    #
-    # @return [String]
-    def json(hash)
-      return hash.to_json if defined?(JSON)
-      # Fallback for older SketchUp version with Ruby 1.8 without StdLib.
-      str = '{'
-      arr = hash.to_a.map!{ |k,v|
-        key = k.is_a?(Symbol) ? k.to_s.inspect : k.inspect
-        if v.is_a?(Hash)
-          "#{key}: #{json(v)}"
-        else
-          value = v.nil? ? "null" : v.inspect
-          "#{key}: #{value}"
-        end
-      }
-      str << arr.join(',')
-      str << '}'
-      str
-    end
-
-    # @param [String] hash
-    #
-    # @return [Hash]
-    def parse_json(json_string)
-      return JSON.parse(json_string) if defined?(JSON)
-      # Naive fallback for older SketchUp versions that had only Ruby 1.8
-      # without StdLib.
-      eval(json_string.gsub('":"', '"=>"'))
     end
 
   end # class

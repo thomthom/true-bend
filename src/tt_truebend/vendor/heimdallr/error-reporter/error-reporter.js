@@ -9,7 +9,7 @@
 window.onerror = function(message, location, line_number) {
   //debugger;
   alert(message + "\n\n" + location + "\n\nLine: " + line_number);
-}
+};
 
 
 /*******************************************************************************
@@ -160,6 +160,7 @@ var Bridge = function() {
 $.support.cors = true;
 
 var error_data_;
+var g_available_version = null;
 
 
 function setup_error_data(error_data)
@@ -198,7 +199,7 @@ function prepare_error_data(error_data)
     name: $("#user_name").val(),
     email: $("#user_email").val(),
     description: $("#user_description").val()
-  }
+  };
   return data;
 }
 
@@ -217,6 +218,13 @@ function restore_form(data)
 {
   $("#user_name").val(data.user_name);
   $("#user_email").val(data.user_email);
+}
+
+
+function available_version(version)
+{
+  g_available_version = version;
+  display_update_message();
 }
 
 
@@ -313,9 +321,31 @@ function display_response(xhr, status)
   var $message = $("#response");
   $message.text("");
 
-  $message.append($title)
-  $message.append($("<hr/>"))
+  $message.append($title);
+  $message.append($("<hr/>"));
   $message.append($response);
+}
+
+
+function display_update_message()
+{
+  var $dialog = $("#update_info");
+  if ($dialog.length == 0) {
+    $dialog = $("<div id='update_info' />");
+    $dialog.addClass("info_panel bottom");
+    var message = "\
+      <h2>Update Available</h2>\
+      \
+      <p>A newer version (" + g_available_version + ") is available.</p>\
+      \
+      <p>Please update the extension and see if the problem persists.</p>";
+    $dialog.html(message);
+    $dialog.on("click", display_update_message);
+    $dialog.hide();
+    $("body").append($dialog);
+  }
+  $dialog.fadeToggle("fast");
+  return false;
 }
 
 

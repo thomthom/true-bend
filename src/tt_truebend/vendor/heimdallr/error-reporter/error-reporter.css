@@ -135,6 +135,10 @@ textarea {
   _height: 80%;
 }
 
+.info_panel.bottom {
+  top: auto;
+}
+
 .info_panel hr {
   border: none;
   border-bottom: 1px dotted #fff;
@@ -201,6 +205,11 @@ textarea {
   /*background: #eee;*/
 }
 
+.highlight {
+  background: #fff0ee;
+  padding: 0.5em;
+}
+
 
 /*******************************************************************************
  *
@@ -250,4 +259,3 @@ textarea {
   background: #822;
   background: rgba(255, 20, 20, 0.25);
 }
-
