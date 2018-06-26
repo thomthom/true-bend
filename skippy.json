@@ -1,11 +1,11 @@
 {
   "name": "True Bend",
-  "description": "",
+  "description": "Bends instance to a given degree, preserving the original length.",
   "namespace": "TT::Plugins::TrueBend",
   "basename": "tt_truebend",
-  "author": "Unknown",
-  "copyright": "Copyright (c) 2017",
-  "license": "None",
+  "author": "Thomas Thomassen",
+  "copyright": "Copyright (c) 2017-2018",
+  "license": "MIT License",
   "sources": [
     "github.com",
     "bitbucket.org"
