@@ -59,9 +59,10 @@ module TT::Plugins::TrueBend
       # Grid widget to visualize the how the bend geometry is mapped from its
       # original shape to the bent shape. `@grid` represent the original mesh.
       bounds = instance.definition.bounds
+      offset = Geom::Transformation.new(bounds.min)
       @grid = Grid.new(bounds.width, bounds.height)
       @grid.x_subdivs = @segmenter.subdivisions
-      @grid.transformation = instance.transformation
+      @grid.transformation = instance.transformation * offset
     end
 
     # @return [nil]
