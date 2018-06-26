@@ -68,6 +68,8 @@ module TT::Plugins::TrueBend
 
       add_debug_menus(menu)
       true # `nil` or `false` will cause native menu to display.
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
     end
     # rubocop:enable Metrics/MethodLength
 
@@ -78,27 +80,39 @@ module TT::Plugins::TrueBend
     def activate
       update_ui
       Sketchup.active_model.active_view.invalidate
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
     end
 
     def deactivate(view)
       view.invalidate
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
     end
 
     def suspend(view)
       update_ui
       view.invalidate
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
     end
 
     def resume(view)
       view.invalidate
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
     end
 
     def onReturn(_view)
       commit_bend
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
     end
 
     def onCancel(_reason, view)
       reset_bend(view)
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
     end
 
     def onUserText(text, view)
@@ -128,6 +142,8 @@ module TT::Plugins::TrueBend
         return
       end
       @manipulator.distance = @bender.distance
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
     ensure
       update_ui
       view.invalidate
@@ -137,22 +153,30 @@ module TT::Plugins::TrueBend
       @manipulator.onLButtonDown(flags, x, y, view)
       view.invalidate
       update_ui
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
     end
 
     def onLButtonUp(flags, x, y, view)
       @manipulator.onLButtonUp(flags, x, y, view)
       update_ui
       view.invalidate
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
     end
 
     def onLButtonDoubleClick(_flags, _x, _y, _view)
       commit_bend
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
     end
 
     def onMouseMove(flags, x, y, view)
       @manipulator.onMouseMove(flags, x, y, view)
       update_ui
       view.invalidate
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
     end
 
     def getExtents
@@ -160,12 +184,16 @@ module TT::Plugins::TrueBend
       bounds.add(@bender.bounds)
       bounds.add(@manipulator.bounds)
       bounds
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
     end
 
     def draw(view)
       @bender.draw(view)
       @boundingbox.draw(view) if SETTINGS.debug_draw_boundingbox?
       @manipulator.draw(view)
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
     end
 
     private

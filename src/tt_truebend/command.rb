@@ -11,13 +11,11 @@ module TT::Plugins::TrueBend
     # (yuck!)
     def self.new(title, &block)
       command = UI::Command.new(title) {
-        block.call
-        # TODO: Re-enable this when ErrorReporter is hooked up.
-        # begin
-        #   block.call
-        # rescue Exception => exception
-        #   ERROR_REPORTER.handle(exception)
-        # end
+        begin
+          block.call
+        rescue Exception => exception
+          ERROR_REPORTER.handle(exception)
+        end
       }
       command.extend(self)
       command

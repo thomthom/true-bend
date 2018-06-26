@@ -7,6 +7,8 @@ module TT::Plugins::TrueBend
       super(EXTENSION[:product_id])
     end
 
+    define :error_server, 'sketchup.thomthom.net'
+
     define :debug, false
     define :debug_draw_boundingbox, false
     define :debug_draw_debug_info, false
