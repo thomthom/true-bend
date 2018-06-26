@@ -11,9 +11,13 @@
     "bitbucket.org"
   ],
   "libraries": [
-
+    {
+      "name": "heimdallr",
+      "version": "1.0.0",
+      "source": "../error-reporter-client"
+    }
   ],
   "modules": [
-
+    "heimdallr/error-reporter"
   ]
 }
