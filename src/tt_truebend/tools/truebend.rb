@@ -3,6 +3,7 @@ require 'tt_truebend/gl/boundingbox'
 require 'tt_truebend/manipulators/drag_handle'
 require 'tt_truebend/app_settings'
 require 'tt_truebend/bender'
+require 'tt_truebend/vcb_parser'
 
 module TT::Plugins::TrueBend
   class TrueBendTool
