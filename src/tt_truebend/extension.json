@@ -1,6 +1,6 @@
 {
   "name": "True Bend",
-  "description": "Bends instance to a given degree, preserving the original length.",
+  "description": "Bends instance to a given degree or radius, preserving the original length.",
   "creator": "Thomas Thomassen",
   "copyright": "Copyright (c) 2017-2018",
   "license": "MIT License",
