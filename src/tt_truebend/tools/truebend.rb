@@ -18,6 +18,8 @@ module TT::Plugins::TrueBend
       polygon = @boundingbox.polygon(BB_POLYGON_FRONT)
 
       @bender = Bender.new(instance, segment, polygon.normal)
+      @bender.segmented = SETTINGS.bend_segmented?
+      @bender.soft_smooth = SETTINGS.bend_soft_smooth?
 
       @manipulator = DragHandle.new(polygon.center, polygon.normal, color: 'red')
 
@@ -51,6 +53,7 @@ module TT::Plugins::TrueBend
 
       id = menu.add_item('Segmented') {
         @bender.segmented = !@bender.segmented
+        SETTINGS.bend_segmented = @bender.segmented
       }
       menu.set_validation_proc(id)  {
         @bender.segmented ? MF_CHECKED : MF_ENABLED
@@ -58,6 +61,7 @@ module TT::Plugins::TrueBend
 
       id = menu.add_item('Soften/Smooth Segments') {
         @bender.soft_smooth = !@bender.soft_smooth
+        SETTINGS.bend_soft_smooth = @bender.soft_smooth
       }
       menu.set_validation_proc(id)  {
         if @bender.segmented
