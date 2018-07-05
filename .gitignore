@@ -1,6 +1,8 @@
 /.skippy/
+/archive/
 
 *.skb
+AutoSave_*.skp
 Backup of *.layout
 
 /Gemfile.lock
