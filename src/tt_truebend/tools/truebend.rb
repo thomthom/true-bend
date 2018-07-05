@@ -137,6 +137,9 @@ module TT::Plugins::TrueBend
       end
       begin
         if bend_by_distance?
+          # Note: This length is relative to the segment length.
+          #       Negative values flips the direction.
+          #       Values larger than segment length is capped.
           @bender.distance = input.length.value
         else
           @bender.angle = input.degrees.value

@@ -3,6 +3,8 @@ inherit_from: .rubocop_todo.yml
 require: rubocop-sketchup
 
 AllCops:
+  Exclude:
+  - src/*/vendor/**/*
   SketchUp:
     SourcePath: src
     TargetSketchUpVersion: 2014

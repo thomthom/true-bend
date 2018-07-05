@@ -1,6 +1,6 @@
 {
   "name": "True Bend",
-  "description": "Bends instance to a given degree or radius, preserving the original length.",
+  "description": "Bends instance to a given degree, preserving the original length.",
   "namespace": "TT::Plugins::TrueBend",
   "basename": "tt_truebend",
   "author": "Thomas Thomassen",

@@ -23,6 +23,8 @@ module TT::Plugins::TrueBend
     attr_reader :segment, :direction
     attr_accessor :segmented, :soft_smooth
 
+    TAU = Math::PI * 2
+
     TEXT_OPTIONS = {
       font: 'Arial',
       size: 10,
@@ -97,9 +99,14 @@ module TT::Plugins::TrueBend
     # @param [Geom::Vector3d] direction
     # @return [nil]
     def bend(direction)
-      @direction = direction
-      @direction.length = segment.length if @direction.length > segment.length
-      @angle = Math::PI * (@direction.length / segment.length * 2)
+      @direction = direction # Clone?
+      @direction.length = [max_bend_distance, direction.length].min
+      # The segment length is the circumference of max bend (360 degrees).
+      # Take this circumference and use the ratio of the
+      # bend distance (direction.length) and use it as a ratio of the max bend.
+      # That ratio will then give us the bend angle.
+      ratio = @direction.length / max_bend_distance
+      @angle = TAU * ratio
       nil
     end
 
@@ -125,8 +132,16 @@ module TT::Plugins::TrueBend
     end
 
     # @return [Length]
+    def max_bend_distance
+      circumference = segment.length
+      circle_radius = circumference / TAU
+      circle_radius * 2.0
+    end
+
+    # @return [Length]
     def distance
-      (radius * (1 - Math.cos(angle / 2))).to_l
+      ratio = @angle / TAU
+      (max_bend_distance * ratio).to_l
     end
 
     # @param [Length] value
@@ -152,6 +167,11 @@ module TT::Plugins::TrueBend
     # @return [Length]
     def radius
       (@segment.length / angle).to_l
+    end
+
+    # @return [Length]
+    def diameter
+      (radius * 2.0).to_l
     end
 
     # @return [Length]
@@ -246,9 +266,12 @@ module TT::Plugins::TrueBend
       degrees = Sketchup.format_angle(angle)
       segment_mid_point = @segmenter.segment.mid_point
       draw_bend_info(view, polar_points, [origin, segment_mid_point], degrees)
+      draw_sagitta(view, [origin, segment_mid_point], polar_points, sagitta)
       draw_debug_bend_info(view, polar_points, length, arc_length, @segment)
 
-      view.tooltip = "Radius: #{radius}\nAngle: #{degrees}\nLength: #{@segment.length} (#{length})"
+      view.tooltip = "Angle: #{degrees}\n"\
+                     "Radius: #{radius}\n"\
+                     "Bend: #{distance}"
     end
 
     private

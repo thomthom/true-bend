@@ -77,11 +77,21 @@ module TT::Plugins::TrueBend
     end
 
     # @param [Sketchup::View] view
-    # @param [Geom::Point3d] mid
-    # @param [Geom::Point3d] origin
-    def draw_radius_length(view, mid, origin)
-      pt = view.screen_coords(Segment.new(mid, origin).mid_point)
-      view.draw_text(pt, radius.to_s, TEXT_OPTIONS)
+    # @param [Array(Geom::Point3d, Geom::Point3d)] radius_segment (Origin, PointOnCurve)
+    # @param [Array<Geom::Point3d>] bend_curve
+    # @param [Length] sagitta
+    def draw_sagitta(view, radius_segment, bend_curve, sagitta)
+      origin, point_on_bend = radius_segment
+      direction = point_on_bend.vector_to(origin)
+      return unless direction.valid?
+      # Sagitta line:
+      view.line_stipple = STIPPLE_DOTTED
+      view.drawing_color = 'purple'
+      view.draw(GL_LINES, bend_curve.first, bend_curve.last)
+      # Sagitta point:
+      sagitta_point = point_on_bend.offset(direction, sagitta)
+      view.line_stipple = ''
+      view.draw_points([sagitta_point], 6, DRAW_CROSS, 'purple')
     end
 
     # @param [Sketchup::View] view
@@ -116,11 +126,8 @@ module TT::Plugins::TrueBend
     # @param [Array(Geom::Point3d, Geom::Point3d)] radius_segment
     # @param [Float] degrees
     def draw_bend_info(view, polar_points, radius_segment, degrees)
-      draw_pie_sides(view, origin, polar_points.first, polar_points.last)
-
+      draw_pie_sides(view, radius_segment.first, polar_points.first, polar_points.last)
       draw_radius_segment(view, radius_segment.last, radius_segment.first)
-      draw_radius_length(view, radius_segment.last, radius_segment.first)
-
       draw_bend_angle(view, polar_points, degrees)
     end
 

@@ -23,4 +23,4 @@ module TT::Plugins::TrueBend
 
   SETTINGS = AppSettings.new
 
-end # module TT::Plugins::SUbD
+end # module
