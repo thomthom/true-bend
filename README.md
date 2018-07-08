@@ -6,6 +6,10 @@ SketchUp extension allowing you to bend instances to a given degree or radius, p
 
 ![](docs/TrueBendDemo01.gif)
 
+The length of the reference segment is preserved as the instance is bent:
+
+![](docs/TrueBendPreserveLength.gif)
+
 Use the VCB to enter an accurate bend angle:
 
 ![](docs/TrueBendVCBAngle.gif)
