@@ -49,6 +49,7 @@ module TT::Plugins::TrueBend
     end
 
     def distance=(value)
+      @direction = @normal.clone unless @direction.valid?
       @direction.length = value
     end
 

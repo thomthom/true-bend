@@ -17,11 +17,20 @@ module TT::Plugins::TrueBend
       segment = @boundingbox.segments.first
       polygon = @boundingbox.polygon(BB_POLYGON_FRONT)
 
-      @bender = Bender.new(instance, segment, polygon.normal)
+      normal = polygon.normal
+      unless normal.valid?
+        # If the instance is flat, work out the direction based on the normal
+        # of the flat instance and the X axis.
+        x_axis = @boundingbox.segments.first.direction
+        z_axis = @boundingbox.polygon(BB_POLYGON_BOTTOM).normal
+        normal = x_axis * z_axis
+      end
+
+      @bender = Bender.new(instance, segment, normal)
       @bender.segmented = SETTINGS.bend_segmented?
       @bender.soft_smooth = SETTINGS.bend_soft_smooth?
 
-      @manipulator = DragHandle.new(polygon.center, polygon.normal, color: 'red')
+      @manipulator = DragHandle.new(polygon.center, normal, color: 'red')
 
       @cached_direction = nil
       @manipulator.on_drag { |direction|

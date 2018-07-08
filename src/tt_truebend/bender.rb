@@ -74,6 +74,10 @@ module TT::Plugins::TrueBend
       nil
     end
 
+    def bending?
+      @angle.abs > 0.0 # TODO: Tolerance?
+    end
+
     def can_bend?
       @direction.valid?
     end
@@ -99,8 +103,10 @@ module TT::Plugins::TrueBend
     # @param [Geom::Vector3d] direction
     # @return [nil]
     def bend(direction)
-      @direction = direction # Clone?
-      @direction.length = [max_bend_distance, direction.length].min
+      @direction = direction.clone
+      if @direction.valid?
+        @direction.length = [max_bend_distance, direction.length].min
+      end
       # The segment length is the circumference of max bend (360 degrees).
       # Take this circumference and use the ratio of the
       # bend distance (direction.length) and use it as a ratio of the max bend.
@@ -147,7 +153,9 @@ module TT::Plugins::TrueBend
     # @param [Length] value
     def distance=(value)
       # TODO: Revise what "distance" represent.
-      vector = direction.clone
+      # If bend has been reset to zero, use the normal instead.
+      # Might be better to keep direction and length separately.
+      vector = direction.valid? ? direction.clone : @normal.clone
       vector.length = value
       bend(vector)
     end
@@ -240,7 +248,8 @@ module TT::Plugins::TrueBend
       @grid.draw(view)
 
       # No need to draw anything else unless there is a bend.
-      return unless @direction.valid?
+      # return unless @direction.valid?
+      return unless bending?
 
       # Set up the projection.
       x_axis = origin.vector_to(polar_points.last)
