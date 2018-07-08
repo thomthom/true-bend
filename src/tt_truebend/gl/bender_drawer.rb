@@ -56,6 +56,7 @@ module TT::Plugins::TrueBend
     # @param [Array<Geom::Point3d>] points
     # @param [Sketchup::Color] color
     def draw_mesh(view, points, color)
+      return if points.empty?
       view.line_stipple = STIPPLE_SOLID
       view.line_width = 2
       view.drawing_color = color
