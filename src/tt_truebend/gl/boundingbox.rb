@@ -1,6 +1,7 @@
 require 'tt_truebend/constants/boundingbox'
 require 'tt_truebend/constants/view'
 require 'tt_truebend/helpers/boundingbox'
+require 'tt_truebend/helpers/instance'
 require 'tt_truebend/gl/drawing_helper'
 
 module TT::Plugins::TrueBend
@@ -8,6 +9,7 @@ module TT::Plugins::TrueBend
 
     include BoundingBoxConstants
     include DrawingHelper
+    include InstanceHelper
     include ViewConstants
 
     def initialize(instance, color: [255, 128, 0], line_width: 2)
@@ -88,7 +90,7 @@ module TT::Plugins::TrueBend
     private
 
     def local_bounds
-      @instance.definition.bounds.extend(BoundingBoxHelper)
+      definition(@instance).bounds.extend(BoundingBoxHelper)
     end
 
     def segment_points

@@ -17,7 +17,7 @@ module TT::Plugins::TrueBend
     end
 
     def slice(instance)
-      entities = instance.definition.entities
+      entities = definition(instance).entities
 
       # The slicing group is created as a sibling to the instance being sliced.
       # Don't want to create it inside the instance being sliced as it should
@@ -62,7 +62,7 @@ module TT::Plugins::TrueBend
       entities.each { |entity|
         next unless instance?(entity)
         tr = transformation * entity.transformation
-        points.concat(segment_points(entity.definition.entities, tr))
+        points.concat(segment_points(definition(entity).entities, tr))
       }
       points
     end
@@ -93,7 +93,7 @@ module TT::Plugins::TrueBend
       entities.each { |entity|
         next unless instance?(entity)
         entity.make_unique
-        ents = entity.definition.entities
+        ents = definition(entity).entities
         tr = transformation * entity.transformation
         intersect_planes(ents, tr, plane_entities) { |edge|
           yield edge

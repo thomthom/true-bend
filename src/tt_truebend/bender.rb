@@ -60,7 +60,7 @@ module TT::Plugins::TrueBend
 
       # Grid widget to visualize the how the bend geometry is mapped from its
       # original shape to the bent shape. `@grid` represent the original mesh.
-      bounds = instance.definition.bounds
+      bounds = definition(instance).bounds
       offset = Geom::Transformation.new(bounds.min)
       @grid = Grid.new(bounds.width, bounds.height)
       @grid.x_subdivs = @segmenter.subdivisions
@@ -119,7 +119,7 @@ module TT::Plugins::TrueBend
     # @return [Sketchup::ComponentInstance, Sketchup::Group]
     def commit
       instance = ensure_groups_are_uniqe(@instance)
-      entities = instance.definition.entities
+      entities = definition(instance).entities
 
       explode_curves(entities)
 
@@ -290,7 +290,7 @@ module TT::Plugins::TrueBend
     # @return [Array<Geom::Point3d>]
     def slice_mesh(instance, planes)
       slicer = Slicer.new(planes)
-      entities = instance.definition.entities
+      entities = definition(instance).entities
       slicer.segment_points(entities, instance.transformation)
     end
 
@@ -341,7 +341,7 @@ module TT::Plugins::TrueBend
         next unless instance?(entity)
         # Assumes instance is unique already.
         tr = transformation * entity.transformation
-        transform_polar(entity.definition.entities, tr)
+        transform_polar(definition(entity).entities, tr)
       }
       nil
     end

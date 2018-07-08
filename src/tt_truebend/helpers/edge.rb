@@ -1,5 +1,9 @@
+require 'tt_truebend/helpers/instance'
+
 module TT::Plugins::TrueBend
   module EdgeHelper
+
+    include InstanceHelper
 
     private
 
@@ -18,7 +22,7 @@ module TT::Plugins::TrueBend
           entity.explode_curve
         elsif instance?(entity)
           entity.make_unique
-          explode_curves(entity.definition.entities)
+          explode_curves(definition(entity).entities)
         end
       }
       nil
