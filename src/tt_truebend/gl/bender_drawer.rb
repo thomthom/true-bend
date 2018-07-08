@@ -118,7 +118,7 @@ module TT::Plugins::TrueBend
       screen_origin = view.screen_coords(origin)
       text = "#{formatted_angle}°"
       text << " (#{degrees}°)" if SETTINGS.debug_draw_debug_info?
-      view.draw_text(screen_origin, text, TEXT_OPTIONS)
+      draw_text(view, screen_origin, text, TEXT_OPTIONS)
     end
 
     # @param [Sketchup::View] view
@@ -141,12 +141,12 @@ module TT::Plugins::TrueBend
       # Curve Length
       pt = view.screen_coords(polar_points.first)
       options[:color] = 'red'
-      view.draw_text(pt, "#{length} (#{arc_length})", options)
+      draw_text(view, pt, "#{length} (#{arc_length})", options)
 
       # Segment Length
       pt = view.screen_coords(segment.points.last)
       options[:color] = 'green'
-      view.draw_text(pt, segment.length.to_s, options)
+      draw_text(view, pt, segment.length.to_s, options)
     end
 
     # @param [Sketchup::View] view

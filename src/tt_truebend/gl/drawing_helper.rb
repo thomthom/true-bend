@@ -4,6 +4,20 @@ module TT::Plugins::TrueBend
     include ViewConstants
 
     # @param [Sketchup::View] view
+    # @param [Geom::Point3d] position
+    # @param [String] text
+    # @param [Hash] options
+    # @return [Sketchup::View]
+    def draw_text(view, position, text, options = {})
+      if view.method(:draw_text).arity == -1
+        view.draw_text(position, text, options)
+      else
+        view.draw_text(position, text)
+      end
+      view
+    end
+
+    # @param [Sketchup::View] view
     # @param [Array(Geom::Point3d, Geom::Vector3d)] plane
     # @param [Numeric] size
     # @param [Sketchup::Color] color
