@@ -3,6 +3,8 @@ require 'tt_truebend/validator'
 module TT::Plugins::TrueBend
   class VCBParser
 
+    class InputError < ArgumentError; end
+
     def initialize(text)
       @text = text
     end
@@ -17,6 +19,8 @@ module TT::Plugins::TrueBend
 
     def length
       Validator.new(@text.to_l)
+    rescue ArgumentError => error
+      raise InputError, error.message
     end
 
     def modifier?

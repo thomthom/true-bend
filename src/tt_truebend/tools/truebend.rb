@@ -3,6 +3,7 @@ require 'tt_truebend/gl/boundingbox'
 require 'tt_truebend/manipulators/drag_handle'
 require 'tt_truebend/app_settings'
 require 'tt_truebend/bender'
+require 'tt_truebend/validator'
 require 'tt_truebend/vcb_parser'
 
 module TT::Plugins::TrueBend
@@ -144,21 +145,18 @@ module TT::Plugins::TrueBend
       unless @bender.can_bend?
         return UI.beep
       end
-      begin
-        if bend_by_distance?
-          # Note: This length is relative to the segment length.
-          #       Negative values flips the direction.
-          #       Values larger than segment length is capped.
-          @bender.distance = input.length.value
-        else
-          @bender.angle = input.degrees.value
-        end
-      rescue ArgumentError => error
-        # TODO: Don't emit error message directly to user.
-        UI.messagebox(error.message)
-        return
+      if bend_by_distance?
+        # Note: This length is relative to the segment length.
+        #       Negative values flips the direction.
+        #       Values larger than segment length is capped.
+        @bender.distance = input.length.value
+      else
+        @bender.angle = input.degrees.value
       end
       @manipulator.distance = @bender.distance
+    rescue VCBParser::InputError, Validator::ValidationError => error
+      # TODO: Don't emit error message directly to user.
+      UI.messagebox(error.message)
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
     ensure
