@@ -23,7 +23,7 @@ AllCops:
       - profiling/
       - skippy/
       - tests/
-  TargetRubyVersion: 2.1 # Should have been 2.0 but RuboCop dropped support.
+  TargetRubyVersion: 2.2 # Should have been 2.0 but RuboCop dropped support.
 
 # In debug code the encoding bug in Ruby isn't a big issue.
 SketchupSuggestions/FileEncoding:
