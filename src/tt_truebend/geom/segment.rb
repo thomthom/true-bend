@@ -22,6 +22,8 @@ module TT::Plugins::TrueBend
     # @param [Array(Geom::Point3d, Geom::Vector3d)] plane
     # @return [Geom::Point3d]
     def intersect_plane(plane)
+      # http://sketchup.thomthom.net/extensions/TT_TrueBend/reports/report/25887?version=1.0.1
+      return nil unless line[1].valid?
       point = Geom.intersect_line_plane(line, plane)
       return nil if point.nil?
       v1 = point.vector_to(@points[0])
