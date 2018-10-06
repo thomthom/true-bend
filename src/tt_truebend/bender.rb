@@ -413,10 +413,9 @@ module TT::Plugins::TrueBend
         a2 = angle / 2.0
         a1 = -a2
         x = o.vector_to(Segment.new(points.first, points.last).mid_point)
-        arc(o, x, z, radius, a1, a2, @segmenter.subdivisions)
-      else
-        points
+        return arc(o, x, z, radius, a1, a2, @segmenter.subdivisions) if x.valid?
       end
+      points
     end
 
     # @param [Array<Geom::Point3d>]
