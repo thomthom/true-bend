@@ -25,13 +25,6 @@ module TT::Plugins::TrueBend
 
     TAU = Math::PI * 2
 
-    TEXT_OPTIONS = {
-      font: 'Arial',
-      size: 10,
-      bold: true,
-      color: 'purple'
-    }.freeze
-
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     # @param [Segment] segment The reference segment for the bend.
     # @param [Geom::Vector3d] normal The direction in which the bend is made.

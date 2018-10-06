@@ -1,4 +1,5 @@
 require 'tt_truebend/constants/view'
+require 'tt_truebend/dpi/view'
 
 module TT::Plugins::TrueBend
   class DragHandle
@@ -55,6 +56,7 @@ module TT::Plugins::TrueBend
 
     def bounds
       view = Sketchup.active_model.active_view
+      view = HighDpiView.new(view)
       points = handle_points(view)
       bounds = Geom::BoundingBox.new
       bounds.add(points)

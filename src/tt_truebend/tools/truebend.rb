@@ -130,12 +130,14 @@ module TT::Plugins::TrueBend
     end
 
     def onCancel(_reason, view)
+      view = HighDpiView.new(view)
       reset_bend(view)
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
     end
 
     def onUserText(text, view)
+      view = HighDpiView.new(view)
       input = VCBParser.new(text)
       if input.modifier?
         if input.segments?
@@ -170,6 +172,8 @@ module TT::Plugins::TrueBend
     end
 
     def onLButtonDown(flags, x, y, view)
+      x, y = DPI.logical_pixels(x, y)
+      view = HighDpiView.new(view)
       @manipulator.onLButtonDown(flags, x, y, view)
       view.invalidate
       update_ui
@@ -178,6 +182,8 @@ module TT::Plugins::TrueBend
     end
 
     def onLButtonUp(flags, x, y, view)
+      x, y = DPI.logical_pixels(x, y)
+      view = HighDpiView.new(view)
       @manipulator.onLButtonUp(flags, x, y, view)
       update_ui
       view.invalidate
@@ -192,6 +198,8 @@ module TT::Plugins::TrueBend
     end
 
     def onMouseMove(flags, x, y, view)
+      x, y = DPI.logical_pixels(x, y)
+      view = HighDpiView.new(view)
       @manipulator.onMouseMove(flags, x, y, view)
       update_ui
       view.invalidate
@@ -209,6 +217,7 @@ module TT::Plugins::TrueBend
     end
 
     def draw(view)
+      view = HighDpiView.new(view)
       @bender.draw(view)
       @boundingbox.draw(view) if SETTINGS.debug_draw_boundingbox?
       @manipulator.draw(view)
