@@ -1,6 +1,7 @@
 require 'tt_truebend/constants/boundingbox'
 require 'tt_truebend/gl/boundingbox'
 require 'tt_truebend/manipulators/drag_handle'
+require 'tt_truebend/observers/transaction'
 require 'tt_truebend/app_settings'
 require 'tt_truebend/bender'
 require 'tt_truebend/validator'
@@ -41,6 +42,8 @@ module TT::Plugins::TrueBend
       @manipulator.on_drag_complete {
         @cached_direction = nil
       }
+
+      @observer = TransactionObserver.new(&method(:on_transaction))
     end
 
     # rubocop:disable Metrics/MethodLength
@@ -93,6 +96,7 @@ module TT::Plugins::TrueBend
     end
 
     def activate
+      attach_observers
       update_ui
       Sketchup.active_model.active_view.invalidate
     rescue Exception => exception
@@ -100,6 +104,7 @@ module TT::Plugins::TrueBend
     end
 
     def deactivate(view)
+      detach_observers
       view.invalidate
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
@@ -272,6 +277,25 @@ module TT::Plugins::TrueBend
         Sketchup.vcb_label = 'Angle'
         Sketchup.vcb_value = Sketchup.format_angle(@bender.angle)
       end
+    end
+
+    def on_transaction(model, type)
+      model.select_tool(nil)
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
+    end
+
+    def attach_observers
+      model = Sketchup.active_model
+      return if model.nil?
+      model.remove_observer(@observer)
+      model.add_observer(@observer)
+    end
+
+    def detach_observers
+      model = Sketchup.active_model
+      return if model.nil?
+      model.remove_observer(@observer)
     end
 
   end # class
