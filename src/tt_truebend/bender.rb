@@ -313,6 +313,9 @@ module TT::Plugins::TrueBend
     # @param [Geom::Transformation] transformation
     # @return [nil]
     def transform_polar(entities, transformation)
+      # http://sketchup.thomthom.net/extensions/TT_TrueBend/reports/report/24606?version=1.0.1
+      return nil unless polar_x_axis.valid?
+
       local_to_segment_space = world_to_segment_space * transformation
 
       # Collect all vertices and create a 1:1 array mapping their positions.
