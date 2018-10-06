@@ -90,7 +90,9 @@ module TT::Plugins::TrueBend
     private
 
     def local_bounds
-      definition(@instance).bounds.extend(BoundingBoxHelper)
+      extended_bounds = definition(@instance).bounds
+      extended_bounds.extend(BoundingBoxHelper)
+      extended_bounds
     end
 
     def segment_points
