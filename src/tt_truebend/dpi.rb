@@ -13,8 +13,8 @@ module DPI
   # To test scaling on a "normal" DPI monitor, use this method to force
   # scaling. SketchUp needs to be restarted for it to take full effect.
   #
-  #     TT_Vertex::DPI.debug_scale(2.0)
-  #     TT_Vertex::DPI.debug_scale(nil)
+  #     TT::Plugins::TrueBend::DPI.debug_scale(2.0)
+  #     TT::Plugins::TrueBend::DPI.debug_scale(nil)
   #
   # @param [Float, nil] scale
   def self.debug_scale(scale)

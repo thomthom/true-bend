@@ -1,8 +1,8 @@
 require 'delegate.rb'
 
-require 'tt_vertex2/dpi/pick_helper'
-require 'tt_vertex2/dpi/view'
-require 'tt_vertex2/dpi'
+require 'tt_truebend/dpi/pick_helper'
+require 'tt_truebend/dpi/view'
+require 'tt_truebend/dpi'
 
 module TT::Plugins::TrueBend
 # Shim that takes care of dealing monitor DPI.

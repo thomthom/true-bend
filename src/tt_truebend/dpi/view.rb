@@ -1,6 +1,6 @@
-require 'tt_vertex2/dpi/inputpoint'
-require 'tt_vertex2/dpi/pick_helper'
-require 'tt_vertex2/dpi'
+require 'tt_truebend/dpi/inputpoint'
+require 'tt_truebend/dpi/pick_helper'
+require 'tt_truebend/dpi'
 
 
 module TT::Plugins::TrueBend
