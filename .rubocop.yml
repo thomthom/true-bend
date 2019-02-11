@@ -104,3 +104,7 @@ Metrics/ModuleLength:
 
 Style/DoubleNegation:
   Enabled: false
+
+# Some times parentheses reads clearer.
+Style/TernaryParentheses:
+  Enabled: false
