@@ -19,10 +19,16 @@ AllCops:
     - tests/**/*
   TargetRubyVersion: 2.2 # Should have been 2.0 but RuboCop dropped support.
 
+
+SketchupSuggestions/Compatibility:
+  Exclude:
+  - src/tt_truebend/dpi.rb
+
 # In debug code the encoding bug in Ruby isn't a big issue.
 SketchupSuggestions/FileEncoding:
   Exclude:
   - src/tt_truebend/debug.rb
+
 
 # I will align my arrays as I please!
 Layout/AlignArray:
