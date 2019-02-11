@@ -52,7 +52,7 @@ module TT::Plugins::TrueBend
     #   @param [Integer] point_style
     #   @param [Sketchup::Color] point_color
     def draw_points(points, *args)
-      args[0] *= DPI.scale_factor if args.size > 0
+      args[0] *= DPI.scale_factor if args.size > 0 # rubocop:disable Style/ZeroLengthPredicate
       @view.send(:draw_points, points, *args)
     end
 
