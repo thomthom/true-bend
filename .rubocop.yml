@@ -86,11 +86,17 @@ Naming/UncommunicativeMethodParamName:
     - 'src/tt_truebend/tools/truebend.rb'
 
 
-Metrics/MethodLength:
-  Max: 30
-
 Metrics/ClassLength:
   Max: 300
+
+# Ideal length should be 80. But some times it reads better to let the line
+# bleed over by a little. In this project there are enough of these cases that
+# the RuboCop max is set to 100.
+Metrics/LineLength:
+  Max: 100
+
+Metrics/MethodLength:
+  Max: 30
 
 
 Style/DoubleNegation:
