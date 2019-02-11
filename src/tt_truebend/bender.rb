@@ -120,6 +120,7 @@ module TT::Plugins::TrueBend
       slicer = Slicer.new(planes)
       slicer.slice(instance) { |new_edge|
         next if @segmented && !@soft_smooth
+
         new_edge.soft = true
         new_edge.smooth = true
         new_edge.casts_shadows = false
@@ -335,6 +336,7 @@ module TT::Plugins::TrueBend
       # Recurse into child instances,
       entities.each { |entity|
         next unless instance?(entity)
+
         # Assumes instance is unique already.
         tr = transformation * entity.transformation
         transform_polar(definition(entity).entities, tr)

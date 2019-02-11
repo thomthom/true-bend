@@ -152,6 +152,7 @@ module TT::Plugins::TrueBend
       unless @bender.can_bend?
         return UI.beep
       end
+
       if bend_by_distance?
         # Note: This length is relative to the segment length.
         #       Negative values flips the direction.
@@ -230,6 +231,7 @@ module TT::Plugins::TrueBend
     # @param [Sketchup::Menu]
     def add_debug_menus(menu)
       return unless SETTINGS.debug?
+
       menu.add_separator
       add_setting_toggle(menu, :debug_draw_boundingbox)
       add_setting_toggle(menu, :debug_draw_debug_info)
@@ -255,6 +257,7 @@ module TT::Plugins::TrueBend
 
     def commit_bend
       return unless @bender.can_bend?
+
       model = Sketchup.active_model
       model.start_operation('Bend', true)
       @bender.commit
@@ -297,6 +300,7 @@ module TT::Plugins::TrueBend
     def attach_observers
       model = Sketchup.active_model
       return if model.nil?
+
       model.remove_observer(@observer)
       model.add_observer(@observer)
     end
@@ -304,6 +308,7 @@ module TT::Plugins::TrueBend
     def detach_observers
       model = Sketchup.active_model
       return if model.nil?
+
       model.remove_observer(@observer)
     end
 

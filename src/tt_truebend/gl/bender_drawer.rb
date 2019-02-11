@@ -57,6 +57,7 @@ module TT::Plugins::TrueBend
     # @param [Sketchup::Color] color
     def draw_mesh(view, points, color)
       return if points.empty?
+
       view.line_stipple = STIPPLE_SOLID
       view.line_width = 2
       view.drawing_color = color
@@ -85,6 +86,7 @@ module TT::Plugins::TrueBend
       origin, point_on_bend = radius_segment
       direction = point_on_bend.vector_to(origin)
       return unless direction.valid?
+
       # Sagitta line:
       view.line_stipple = STIPPLE_DOTTED
       view.drawing_color = 'purple'
@@ -137,6 +139,7 @@ module TT::Plugins::TrueBend
     # @param [Length] length  Length of `polar_points`
     def draw_debug_bend_info(view, polar_points, length, arc_length, segment)
       return unless SETTINGS.debug_draw_debug_info?
+
       options = TEXT_OPTIONS.dup
 
       # Curve Length
@@ -155,6 +158,7 @@ module TT::Plugins::TrueBend
     # @param [Geom::Transformation] tr_to_segment_space
     def draw_debug_planes(view, planes, tr_to_segment_space)
       return unless SETTINGS.debug_draw_slice_planes?
+
       planes.each { |plane|
         local_plane = plane.map { |n| n.transform(tr_to_segment_space) }
         draw_plane(view, local_plane, 1.m, 'red')
@@ -165,6 +169,7 @@ module TT::Plugins::TrueBend
     # @param [Array<Geom::Point3d>] mesh_points
     def draw_debug_global_mesh(view, mesh_points)
       return unless SETTINGS.debug_draw_global_mesh?
+
       draw_mesh(view, mesh_points, 'orange')
     end
 
@@ -173,6 +178,7 @@ module TT::Plugins::TrueBend
     # @param [Geom::Transformation] to_local
     def draw_debug_local_mesh(view, mesh_points, to_local)
       return unless SETTINGS.debug_draw_local_mesh?
+
       local_mesh = mesh_points.map { |pt| pt.transform(to_local) }
       draw_mesh(view, local_mesh, 'purple')
     end

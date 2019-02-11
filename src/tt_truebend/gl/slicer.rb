@@ -61,6 +61,7 @@ module TT::Plugins::TrueBend
       # Child instances:
       entities.each { |entity|
         next unless instance?(entity)
+
         tr = transformation * entity.transformation
         points.concat(segment_points(definition(entity).entities, tr))
       }
@@ -92,6 +93,7 @@ module TT::Plugins::TrueBend
       # Instead we recurse manually.
       entities.each { |entity|
         next unless instance?(entity)
+
         entity.make_unique
         ents = definition(entity).entities
         tr = transformation * entity.transformation

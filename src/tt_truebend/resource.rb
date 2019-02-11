@@ -6,6 +6,7 @@ module TT::Plugins::TrueBend
 
     def self.get_icon_path(path)
       return path unless Sketchup.version.to_i > 15
+
       vector_icon = self.get_vector_path(path)
       File.exist?(vector_icon) ? vector_icon : path
     end

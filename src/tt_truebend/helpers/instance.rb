@@ -35,6 +35,7 @@ module TT::Plugins::TrueBend
       if instance.is_a?(Sketchup::Group)
         return instance.entities.parent
       end
+
       nil # Given entity was not an instance of an definition.
     end
 

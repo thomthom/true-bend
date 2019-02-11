@@ -95,6 +95,7 @@ module TT::Plugins::TrueBend
 
       picked = pick_point(x, y, view)
       return unless picked
+
       @start_pick = picked
       @mouse_down_position = @mouse_position.clone
     end
@@ -188,6 +189,7 @@ module TT::Plugins::TrueBend
     def pick_point(x, y, view)
       index = pick_segment(x, y, view)
       return nil unless index
+
       pick_closest(x, y, view)
     end
 

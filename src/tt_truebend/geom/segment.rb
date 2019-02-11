@@ -24,12 +24,15 @@ module TT::Plugins::TrueBend
     def intersect_plane(plane)
       # http://sketchup.thomthom.net/extensions/TT_TrueBend/reports/report/25887?version=1.0.1
       return nil unless line[1].valid?
+
       point = Geom.intersect_line_plane(line, plane)
       return nil if point.nil?
+
       v1 = point.vector_to(@points[0])
       v2 = point.vector_to(@points[1])
       return nil unless v1.valid? && v2.valid?
       return nil if v1.samedirection?(v2)
+
       point
     end
 
@@ -58,6 +61,7 @@ module TT::Plugins::TrueBend
     def split(plane)
       point = intersect_plane(plane)
       return [self] if point.nil?
+
       [self.class.new(@points[0], point), self.class.new(point, @points[1])]
     end
 

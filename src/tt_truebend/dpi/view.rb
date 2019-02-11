@@ -15,6 +15,7 @@ class HighDpiView
   # @param [Sketchup::View] view
   def initialize(view)
     raise TypeError, view.class.name unless view.is_a?(Sketchup::View)
+
     @view = view
   end
 
