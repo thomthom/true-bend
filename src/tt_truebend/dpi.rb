@@ -36,7 +36,7 @@ module DPI
   # UI.scale_factor.
   #
   # @param [Float, nil] scale
-  def self.set_scaling(scale)
+  def self.set_scaling(scale) # rubocop:disable Naming/AccessorMethodName
     @tr_scale_to_device = nil
     @tr_scale_to_logical = nil
     SETTINGS.dpi_scale_factor = scale
