@@ -29,10 +29,10 @@ class HighDpiInputPoint < SimpleDelegator
     super(ip)
   end
 
-  # @param [HighDpiInputPoint] ip
+  # @param [HighDpiInputPoint] input_point
   # @return [HighDpiInputPoint]
-  def copy!(ip)
-    __getobj__.copy!(ip.__getobj__)
+  def copy!(input_point)
+    __getobj__.copy!(input_point.__getobj__)
     self
   end
 

@@ -77,6 +77,11 @@ Naming/MethodName:
     - '**/tools/*.rb'
     - '**/manipulators/*.rb'
 
+# Bug: https://github.com/rubocop-hq/rubocop/issues/6761
+Naming/UncommunicativeMethodParamName:
+  Exclude:
+    - 'src/tt_truebend/tools/truebend.rb'
+
 
 Style/DoubleNegation:
   Enabled: false
