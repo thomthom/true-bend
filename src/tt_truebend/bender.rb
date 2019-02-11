@@ -223,7 +223,7 @@ module TT::Plugins::TrueBend
     def segment_angle
       if @segmented
         angle / @segmenter.subdivisions.to_f
-      else
+      else # rubocop:disable Style/EmptyElse
         nil
       end
     end
