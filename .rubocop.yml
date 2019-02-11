@@ -105,6 +105,10 @@ Metrics/ModuleLength:
 Style/DoubleNegation:
   Enabled: false
 
+Metrics/ParameterLists:
+  Exclude:
+    - 'src/tt_truebend/bender.rb'
+
 # Some times parentheses reads clearer.
 Style/TernaryParentheses:
   Enabled: false
