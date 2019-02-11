@@ -89,6 +89,7 @@ Layout/SpaceInsideParens:
 Lint/RescueException:
   Enabled: false
 
+
 # Too noisy...
 Metrics/AbcSize:
   Enabled: false
@@ -111,6 +112,7 @@ Metrics/MethodLength:
 # Too noisy...
 Metrics/PerceivedComplexity:
   Enabled: false
+
 
 # Tests follow a different naming convention.
 Naming/ClassAndModuleCamelCase:
@@ -136,6 +138,7 @@ Naming/MethodName:
 # of 3D and their meaning is clear.
 Naming/UncommunicativeMethodParamName:
   Enabled: false
+
 
 # It's ok to use {...} for multi-line blocks.
 Style/BlockDelimiters:
