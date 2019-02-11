@@ -20,7 +20,7 @@ module TT::Plugins::TrueBend
       font: 'Arial',
       size: 10,
       bold: true,
-      color: 'purple'
+      color: 'purple',
     }.freeze
 
     private

@@ -50,7 +50,7 @@ module TT::Plugins::TrueBend
       extension:    @extension,
       server:       "http://#{server}/api/v1/extension/report_error",
       support_url:  'https://github.com/thomthom/true-bend',
-      debug:        SETTINGS.debug?
+      debug:        SETTINGS.debug?,
     }
     ERROR_REPORTER = ErrorReporter.new(config)
 
