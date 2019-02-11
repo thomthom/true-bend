@@ -11,21 +11,10 @@ AllCops:
   SketchUp:
     SourcePath: src
     TargetSketchUpVersion: 2014
-    SketchupPerformance:
-      Exclude:
-      - profiling/
-      - skippy/
-      - tests/
-    SketchupRequirements:
-      Exclude:
-      - profiling/
-      - skippy/
-      - tests/
-    SketchupSuggestions:
-      Exclude:
-      - profiling/
-      - skippy/
-      - tests/
+    Exclude:
+    - profiling/**/*
+    - skippy/**/*
+    - tests/**/*
   TargetRubyVersion: 2.2 # Should have been 2.0 but RuboCop dropped support.
 
 # In debug code the encoding bug in Ruby isn't a big issue.
@@ -131,6 +120,7 @@ Naming/FileName:
 Naming/MethodName:
   Exclude:
     - '**/*_tool.rb'
+    - '**/observers/*.rb'
     - '**/tools/*.rb'
     - '**/manipulators/*.rb'
 
