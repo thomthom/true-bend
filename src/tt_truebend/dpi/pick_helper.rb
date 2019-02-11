@@ -1,3 +1,5 @@
+require 'delegate.rb'
+
 require 'tt_truebend/dpi/view'
 require 'tt_truebend/dpi'
 
@@ -6,7 +8,16 @@ module TT::Plugins::TrueBend
 #
 # The users of this class work with logical units and they are automatically
 # converted to device pixels for the API to consume where appropriate.
-module HighDpiPickHelper
+class HighDpiPickHelper < SimpleDelegator
+
+  # @param [Sketchup::PickHelper] pick_helper
+  def initialize(pick_helper)
+    unless pick_helper.is_a?(Sketchup::PickHelper)
+      raise TypeError, "Expected Sketchup::PickHelper, got #{pick_helper.class.name}"
+    end
+
+    super(pick_helper)
+  end
 
   # @param [Integer] x
   # @param [Integer] y
@@ -75,5 +86,5 @@ module HighDpiPickHelper
     HighDpiView.new(super)
   end
 
-end # module
+end # class
 end # module

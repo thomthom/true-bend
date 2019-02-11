@@ -123,9 +123,7 @@ class HighDpiView
   def pick_helper(*args)
     args[0] *= DPI.scale_factor if args.size >= 1 # x
     args[1] *= DPI.scale_factor if args.size >= 2 # y
-    ph = @view.pick_helper(*args)
-    ph.extend(HighDpiPickHelper)
-    ph
+    HighDpiPickHelper.new(@view.pick_helper(*args))
   end
 
   # @param [Integer] x
