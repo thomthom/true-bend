@@ -1,6 +1,10 @@
 /.skippy/
 /archive/
 
+# Backup files
 *.skb
 AutoSave_*.skp
 Backup of *.layout
+
+# RuboCop
+.rubocop-https-*-yml

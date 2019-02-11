@@ -1,6 +1,8 @@
-inherit_from: .rubocop_todo.yml
-
 require: rubocop-sketchup
+
+inherit_from:
+  # - https://raw.githubusercontent.com/SketchUp/rubocop-sketchup/master/sketchup-style.yml
+  - .rubocop_todo.yml
 
 AllCops:
   DisplayCopNames: true
