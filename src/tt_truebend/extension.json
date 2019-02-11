@@ -2,9 +2,9 @@
   "name": "True Bend",
   "description": "Bends instance to a given degree, preserving the original length.",
   "creator": "Thomas Thomassen",
-  "copyright": "Copyright (c) 2017-2018",
+  "copyright": "Copyright (c) 2017-2019",
   "license": "MIT License",
   "product_id": "TT_TrueBend",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "build": "1"
 }
