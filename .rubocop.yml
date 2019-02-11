@@ -89,6 +89,9 @@ Naming/UncommunicativeMethodParamName:
 Metrics/MethodLength:
   Max: 30
 
+Metrics/ClassLength:
+  Max: 300
+
 
 Style/DoubleNegation:
   Enabled: false
