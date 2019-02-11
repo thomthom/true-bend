@@ -62,40 +62,40 @@ module TT::Plugins::TrueBend
     def polygons # rubocop:disable Metrics/MethodLength
       [
         Polygon.new(
-          corner(BB_LEFT_FRONT_BOTTOM),
-          corner(BB_RIGHT_FRONT_BOTTOM),
-          corner(BB_RIGHT_FRONT_TOP),
-          corner(BB_LEFT_FRONT_TOP)
+            corner(BB_LEFT_FRONT_BOTTOM),
+            corner(BB_RIGHT_FRONT_BOTTOM),
+            corner(BB_RIGHT_FRONT_TOP),
+            corner(BB_LEFT_FRONT_TOP)
         ),
         Polygon.new(
-          corner(BB_RIGHT_FRONT_BOTTOM),
-          corner(BB_RIGHT_BACK_BOTTOM),
-          corner(BB_RIGHT_BACK_TOP),
-          corner(BB_RIGHT_FRONT_TOP)
+            corner(BB_RIGHT_FRONT_BOTTOM),
+            corner(BB_RIGHT_BACK_BOTTOM),
+            corner(BB_RIGHT_BACK_TOP),
+            corner(BB_RIGHT_FRONT_TOP)
         ),
         Polygon.new(
-          corner(BB_RIGHT_BACK_BOTTOM),
-          corner(BB_LEFT_BACK_BOTTOM),
-          corner(BB_LEFT_BACK_TOP),
-          corner(BB_RIGHT_BACK_TOP)
+            corner(BB_RIGHT_BACK_BOTTOM),
+            corner(BB_LEFT_BACK_BOTTOM),
+            corner(BB_LEFT_BACK_TOP),
+            corner(BB_RIGHT_BACK_TOP)
         ),
         Polygon.new(
-          corner(BB_LEFT_BACK_BOTTOM),
-          corner(BB_LEFT_FRONT_BOTTOM),
-          corner(BB_LEFT_FRONT_TOP),
-          corner(BB_LEFT_BACK_TOP)
+            corner(BB_LEFT_BACK_BOTTOM),
+            corner(BB_LEFT_FRONT_BOTTOM),
+            corner(BB_LEFT_FRONT_TOP),
+            corner(BB_LEFT_BACK_TOP)
         ),
         Polygon.new(
-          corner(BB_LEFT_FRONT_TOP),
-          corner(BB_RIGHT_FRONT_TOP),
-          corner(BB_RIGHT_BACK_TOP),
-          corner(BB_LEFT_BACK_TOP)
+            corner(BB_LEFT_FRONT_TOP),
+            corner(BB_RIGHT_FRONT_TOP),
+            corner(BB_RIGHT_BACK_TOP),
+            corner(BB_LEFT_BACK_TOP)
         ),
         Polygon.new(
-          corner(BB_RIGHT_BACK_BOTTOM),
-          corner(BB_LEFT_BACK_BOTTOM),
-          corner(BB_LEFT_FRONT_BOTTOM),
-          corner(BB_RIGHT_FRONT_BOTTOM)
+            corner(BB_RIGHT_BACK_BOTTOM),
+            corner(BB_LEFT_BACK_BOTTOM),
+            corner(BB_LEFT_FRONT_BOTTOM),
+            corner(BB_RIGHT_FRONT_BOTTOM)
         ),
       ]
     end

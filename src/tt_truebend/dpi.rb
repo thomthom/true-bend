@@ -96,8 +96,8 @@ module DPI
   # @return [Geom::Transformation]
   def self.scale_to_device_transform
     @tr_scale_to_device ||= Geom::Transformation.scaling(scale_factor,
-                                                         scale_factor,
-                                                         scale_factor)
+        scale_factor,
+        scale_factor)
     @tr_scale_to_device
   end
 

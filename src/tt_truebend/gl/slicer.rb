@@ -78,12 +78,12 @@ module TT::Plugins::TrueBend
       # splitting an existing edge.
       temp = entities.add_group
       entities.intersect_with(
-        false, # recurse - must be off for desired result.
-        transformation,
-        temp.entities, # target Entities collection
-        transformation,
-        false, # hidden
-        plane_entities.to_a # Array of entities to intersect `entities` with.
+          false, # recurse - must be off for desired result.
+          transformation,
+          temp.entities, # target Entities collection
+          transformation,
+          false, # hidden
+          plane_entities.to_a # Array of entities to intersect `entities` with.
       )
       temp.entities.grep(Sketchup::Edge) { |edge| yield edge }
       temp.explode
