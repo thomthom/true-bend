@@ -155,13 +155,13 @@ module TT::Plugins::TrueBend
     end
 
     # @return [Float]
-    def angle
+    def angle # rubocop:disable Style/TrivialAccessors
       # radians = length / radius
       @angle
     end
 
     # @param [Float] value Angle in radians.
-    def angle=(value)
+    def angle=(value) # rubocop:disable Style/TrivialAccessors
       # TODO: Update direction length?
       @angle = value
     end
