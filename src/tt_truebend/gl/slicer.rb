@@ -104,7 +104,7 @@ module TT::Plugins::TrueBend
       nil
     end
 
-    def edge_segments(entities, transformation, wysiwyg: true)
+    def edge_segments(entities, transformation, _wysiwyg: true)
       edges = entities.grep(Sketchup::Edge).reject { |edge|
         edge.hidden? || edge.soft? || !edge.layer.visible?
       }
