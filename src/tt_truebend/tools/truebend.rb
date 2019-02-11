@@ -51,14 +51,14 @@ module TT::Plugins::TrueBend
       id = menu.add_item('Commit') {
         commit_bend
       }
-      menu.set_validation_proc(id)  {
+      menu.set_validation_proc(id) {
         @bender.can_bend? ? MF_ENABLED : MF_DISABLED | MF_GRAYED
       }
 
       id = menu.add_item('Cancel') {
         reset_bend(Sketchup.active_model.active_view)
       }
-      menu.set_validation_proc(id)  {
+      menu.set_validation_proc(id) {
         @bender.can_bend? ? MF_ENABLED : MF_DISABLED | MF_GRAYED
       }
 
@@ -68,7 +68,7 @@ module TT::Plugins::TrueBend
         @bender.segmented = !@bender.segmented
         SETTINGS.bend_segmented = @bender.segmented
       }
-      menu.set_validation_proc(id)  {
+      menu.set_validation_proc(id) {
         @bender.segmented ? MF_CHECKED : MF_ENABLED
       }
 
@@ -76,7 +76,7 @@ module TT::Plugins::TrueBend
         @bender.soft_smooth = !@bender.soft_smooth
         SETTINGS.bend_soft_smooth = @bender.soft_smooth
       }
-      menu.set_validation_proc(id)  {
+      menu.set_validation_proc(id) {
         if @bender.segmented
           @bender.soft_smooth ? MF_CHECKED : MF_ENABLED
         else
@@ -250,7 +250,7 @@ module TT::Plugins::TrueBend
         SETTINGS.send(setter, !SETTINGS.send(getter))
         Sketchup.active_model.active_view.invalidate
       }
-      menu.set_validation_proc(id)  {
+      menu.set_validation_proc(id) {
         SETTINGS.send(getter) ? MF_CHECKED : MF_ENABLED
       }
     end
