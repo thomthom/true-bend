@@ -101,13 +101,17 @@ Metrics/MethodLength:
 Metrics/ModuleLength:
   Max: 110
 
+Metrics/ParameterLists:
+  Exclude:
+    - 'src/tt_truebend/bender.rb'
+
 
 Style/DoubleNegation:
   Enabled: false
 
-Metrics/ParameterLists:
+Style/MultilineTernaryOperator:
   Exclude:
-    - 'src/tt_truebend/bender.rb'
+  - 'src/tt_truebend/geom/polar_projection.rb'
 
 # Some times parentheses reads clearer.
 Style/TernaryParentheses:
