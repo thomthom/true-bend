@@ -98,6 +98,9 @@ Metrics/LineLength:
 Metrics/MethodLength:
   Max: 30
 
+Metrics/ModuleLength:
+  Max: 110
+
 
 Style/DoubleNegation:
   Enabled: false
