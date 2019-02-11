@@ -291,7 +291,7 @@ module TT::Plugins::TrueBend
       end
     end
 
-    def on_transaction(model, type)
+    def on_transaction(model, _type)
       model.select_tool(nil)
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
