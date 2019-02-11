@@ -17,7 +17,7 @@ module TT::Plugins::TrueBend
         Geom::Point3d.new(-0.5,  0.5, 0),
       ]
       # Scale and orient.
-      tr_scale = Geom::Transformation.scaling(size)
+      tr_scale = Geom::Transformation.scaling(size, size, size)
       origin, z_axis = plane
       tr_axes = Geom::Transformation.new(origin, z_axis)
       tr = tr_axes * tr_scale
