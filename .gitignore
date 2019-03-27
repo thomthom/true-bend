@@ -8,3 +8,6 @@ Backup of *.layout
 
 # RuboCop
 .rubocop-https-*-yml
+
+# RubyMine
+.idea
