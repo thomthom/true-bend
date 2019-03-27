@@ -12,6 +12,8 @@ module TT::Plugins::TrueBend
 
     include BoundingBoxConstants
 
+    class BendError < RuntimeError; end
+
     def initialize(instance)
       @bend_by_distance = false
       @boundingbox = BoundingBoxWidget.new(instance)
@@ -27,6 +29,7 @@ module TT::Plugins::TrueBend
         z_axis = @boundingbox.polygon(BB_POLYGON_BOTTOM).normal
         normal = x_axis * z_axis
       end
+      raise BendError, 'zero length distance to bend' unless normal.valid?
 
       @bender = Bender.new(instance, segment, normal)
       @bender.segmented = SETTINGS.bend_segmented?

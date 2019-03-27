@@ -42,8 +42,13 @@ module TT::Plugins::TrueBend
       UI.messagebox('Select a single Group or Component to bend.')
       return
     end
-    tool = TrueBendTool.new(instances.first)
-    model.tools.push_tool(tool)
+    begin
+      tool = TrueBendTool.new(instances.first)
+      model.tools.push_tool(tool)
+    rescue TrueBendTool::BendError
+      message = 'Unable to bend because the distance along the x-axis is zero.'
+      UI.messagebox(message)
+    end
   end
 
 end # module
