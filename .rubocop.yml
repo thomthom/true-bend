@@ -17,7 +17,7 @@ AllCops:
     - profiling/**/*
     - skippy/**/*
     - tests/**/*
-  TargetRubyVersion: 2.2 # Should have been 2.0 but RuboCop dropped support.
+  TargetRubyVersion: 2.3 # Should have been 2.0 but RuboCop dropped support.
 
 
 SketchupSuggestions/Compatibility:
