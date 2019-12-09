@@ -10,7 +10,7 @@ module TT::Plugins::TrueBend
         @points = args
       else
         raise ArgumentError,
-            "polygons require at least 3 points (#{@points.size} given)"
+              "polygons require at least 3 points (#{@points.size} given)"
       end
     end
 

@@ -55,9 +55,26 @@ Lint/RescueException:
 
 # Tests should have not upper size limit.
 Metrics/ClassLength:
+  Max: 300
   Exclude:
     - 'profiling/**/*'
     - 'tests/**/*'
+
+# Ideal length should be 80. But some times it reads better to let the line
+# bleed over by a little. In this project there are enough of these cases that
+# the RuboCop max is set to 100.
+Metrics/LineLength:
+  Max: 100
+
+Metrics/MethodLength:
+  Max: 30
+
+Metrics/ModuleLength:
+  Max: 110
+
+Metrics/ParameterLists:
+  Exclude:
+    - 'src/tt_truebend/bender.rb'
 
 
 # Tests follow a different naming convention.
@@ -86,27 +103,11 @@ Naming/UncommunicativeMethodParamName:
     - 'src/tt_truebend/tools/truebend.rb'
 
 
-Metrics/ClassLength:
-  Max: 300
-
-# Ideal length should be 80. But some times it reads better to let the line
-# bleed over by a little. In this project there are enough of these cases that
-# the RuboCop max is set to 100.
-Metrics/LineLength:
-  Max: 100
-
-Metrics/MethodLength:
-  Max: 30
-
-Metrics/ModuleLength:
-  Max: 110
-
-Metrics/ParameterLists:
-  Exclude:
-    - 'src/tt_truebend/bender.rb'
-
-
 Style/DoubleNegation:
+  Enabled: false
+
+# Need to perform testing before enabling frozen string literals.
+Style/FrozenStringLiteralComment:
   Enabled: false
 
 Style/MultilineTernaryOperator:
