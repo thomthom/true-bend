@@ -65,7 +65,6 @@ PLATFORMS
 
 DEPENDENCIES
   minitest
-  nokogiri (~> 1.10)
   rubocop (>= 0.82, <= 0.93)
   rubocop-sketchup (~> 0.19.0)
   sketchup-api-stubs
