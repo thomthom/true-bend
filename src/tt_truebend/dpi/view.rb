@@ -19,7 +19,6 @@ module TT::Plugins::TrueBend
       @view = view
     end
 
-    # @param [Integer] index
     # @return [Array(Float, Float)]
     def center
       logical_pixels(*@view.center)

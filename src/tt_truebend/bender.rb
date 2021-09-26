@@ -416,7 +416,7 @@ module TT::Plugins::TrueBend
       points
     end
 
-    # @param [Array<Geom::Point3d>]
+    # @param [Array<Geom::Point3d>] points
     # @return [Length]
     def curve_length(points)
       total = 0.0

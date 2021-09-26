@@ -19,7 +19,7 @@ module TT::Plugins::TrueBend
     end
 
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
-    # @param [Sketchup::ComponentDefinition]
+    # @return [Sketchup::ComponentDefinition]
     def definition(instance)
       if instance.respond_to?(:definition)
         begin

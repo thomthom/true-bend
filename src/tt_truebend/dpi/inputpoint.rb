@@ -36,7 +36,7 @@ module TT::Plugins::TrueBend
       self
     end
 
-    # @param [Sketchup::View, HighDpiView]
+    # @param [Sketchup::View, HighDpiView] view
     def draw(view)
       view = view.view if view.is_a?(HighDpiView)
       __getobj__.draw(view)

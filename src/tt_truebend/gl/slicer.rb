@@ -72,7 +72,7 @@ module TT::Plugins::TrueBend
 
     private
 
-    # @param [Sketchup::Entities] enities
+    # @param [Sketchup::Entities] entities
     # @param [Geom::Transformation] transformation
     # @param [Array<Sketchup::Entity>] plane_entities
     #

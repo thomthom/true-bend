@@ -7,4 +7,5 @@ group :development do
   gem 'sketchup-api-stubs'
   gem 'skippy', '~> 0.4.1.a'
   gem 'solargraph'
+  gem 'yard'
 end

@@ -70,6 +70,7 @@ DEPENDENCIES
   sketchup-api-stubs
   skippy (~> 0.4.1.a)
   solargraph
+  yard
 
 BUNDLED WITH
    2.1.4

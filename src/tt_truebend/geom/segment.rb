@@ -56,7 +56,7 @@ module TT::Plugins::TrueBend
       Geom.linear_combination(0.5, @points.first, 0.5, @points.last)
     end
 
-    # @param [Geom::Transformation] transformation
+    # @param [Array(Geom::Point3d, Geom::Vector3d)] plane
     # @return [Array(Segment, Segment)]
     def split(plane)
       point = intersect_plane(plane)

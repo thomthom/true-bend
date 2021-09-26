@@ -124,7 +124,7 @@ module TT::Plugins::TrueBend
     end
 
     if self.force_scale_factor?
-      # @param [Numeric]
+      # @param [Numeric] width
       # @return [Numeric]
       def self.scale_line_width(width)
         to_device(width)

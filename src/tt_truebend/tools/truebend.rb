@@ -231,7 +231,7 @@ module TT::Plugins::TrueBend
 
     private
 
-    # @param [Sketchup::Menu]
+    # @param [Sketchup::Menu] menu
     def add_debug_menus(menu)
       return unless SETTINGS.debug?
 

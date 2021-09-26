@@ -11,3 +11,7 @@ Backup of *.layout
 
 # RubyMine
 .idea
+
+# YARD
+/.yardoc/
+/doc/
