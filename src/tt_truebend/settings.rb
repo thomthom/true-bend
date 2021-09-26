@@ -51,9 +51,10 @@ module TT::Plugins::TrueBend
 
     def escape_quotes(value)
       # TODO(thomthom): Include Hash? Likely value to store.
-      if value.is_a?(String)
+      case value
+      when String
         value.gsub(/"/, '\\"')
-      elsif value.is_a?(Array)
+      when Array
         value.map { |sub_value| escape_quotes(sub_value) }
       else
         value

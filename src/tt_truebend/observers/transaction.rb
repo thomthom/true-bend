@@ -1,7 +1,7 @@
 module TT::Plugins::TrueBend
   class TransactionObserver < Sketchup::ModelObserver
 
-    def initialize(&block)
+    def initialize(&block) # rubocop:disable Lint/MissingSuper
       @callback = block
     end
 

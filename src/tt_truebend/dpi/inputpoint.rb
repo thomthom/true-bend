@@ -1,4 +1,4 @@
-require 'delegate.rb'
+require 'delegate'
 
 require 'tt_truebend/dpi/pick_helper'
 require 'tt_truebend/dpi/view'

@@ -115,7 +115,7 @@ module TT::Plugins::TrueBend
 
     if UI.respond_to?(:scale_factor)
       def self.force_scale_factor?
-        SETTINGS.debug_force_high_dpi? && UI.scale_factor == 1.0
+        SETTINGS.debug_force_high_dpi? && UI.scale_factor == 1.0 # rubocop:disable Lint/FloatComparison
       end
     else
       def self.force_scale_factor?

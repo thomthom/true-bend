@@ -16,7 +16,11 @@ module TT::Plugins::TrueBend
       @planes << plane
     end
 
-    def slice(instance)
+    # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
+    #
+    # @yield [edge]
+    #   @yieldparam [Sketchup::Edge] edge
+    def slice(instance, &block)
       entities = definition(instance).entities
 
       # The slicing group is created as a sibling to the instance being sliced.
@@ -47,9 +51,7 @@ module TT::Plugins::TrueBend
       # Intersect the entities in the instance with the slicing planes.
       transformation = instance.transformation
       plane_entities = slice_group.entities
-      intersect_planes(entities, transformation, plane_entities) { |edge|
-        yield edge
-      }
+      intersect_planes(entities, transformation, plane_entities, &block)
 
       slice_group.erase!
     end
@@ -70,7 +72,13 @@ module TT::Plugins::TrueBend
 
     private
 
-    def intersect_planes(entities, transformation, plane_entities)
+    # @param [Sketchup::Entities] enities
+    # @param [Geom::Transformation] transformation
+    # @param [Array<Sketchup::Entity>] plane_entities
+    #
+    # @yield [edge]
+    #   @yieldparam [Sketchup::Edge] edge
+    def intersect_planes(entities, transformation, plane_entities, &block)
       # The new edges from the intersection is created in a temporary group so
       # it is possible to apply various properties to them. If the edges are
       # created directly in the definition then its not possible to determine
@@ -85,7 +93,7 @@ module TT::Plugins::TrueBend
           false, # hidden
           plane_entities.to_a # Array of entities to intersect `entities` with.
       )
-      temp.entities.grep(Sketchup::Edge) { |edge| yield edge }
+      temp.entities.grep(Sketchup::Edge, &block)
       temp.explode
       # Child instances:
       # The `recurse` parameter of `intersect_with` doesn't yield correct.
@@ -97,9 +105,7 @@ module TT::Plugins::TrueBend
         entity.make_unique
         ents = definition(entity).entities
         tr = transformation * entity.transformation
-        intersect_planes(ents, tr, plane_entities) { |edge|
-          yield edge
-        }
+        intersect_planes(ents, tr, plane_entities, &block)
       }
       nil
     end

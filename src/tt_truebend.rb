@@ -8,8 +8,8 @@
 
 require 'json'
 
-require 'extensions.rb'
-require 'sketchup.rb'
+require 'extensions'
+require 'sketchup'
 
 module TT
 module Plugins

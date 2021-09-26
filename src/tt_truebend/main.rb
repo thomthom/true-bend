@@ -1,4 +1,4 @@
-require 'sketchup.rb'
+require 'sketchup'
 
 require 'tt_truebend/helpers/instance'
 require 'tt_truebend/tools/truebend'

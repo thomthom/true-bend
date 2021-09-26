@@ -10,7 +10,7 @@ AllCops:
   ExtraDetails: true
   Exclude:
   - src/*/vendor/**/*
-  NewCops: disable
+  NewCops: enable
   SketchUp:
     SourcePath: src
     TargetSketchUpVersion: 2014
@@ -105,6 +105,9 @@ Style/DoubleNegation:
 
 # Need to perform testing before enabling frozen string literals.
 Style/FrozenStringLiteralComment:
+  Enabled: false
+
+Style/AccessorGrouping:
   Enabled: false
 
 Style/MultilineTernaryOperator:
