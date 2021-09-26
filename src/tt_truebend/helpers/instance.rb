@@ -24,7 +24,7 @@ module TT::Plugins::TrueBend
       if instance.respond_to?(:definition)
         begin
           return instance.definition
-        rescue # rubocop:disable Lint/HandleExceptions, Style/RescueStandardError
+        rescue # rubocop:disable Style/RescueStandardError
           # Previously this was the first check, but too many extensions modify
           # Sketchup::Group.definition with a method which is bugged so to avoid
           # all the complaints about extensions not working due to this the call

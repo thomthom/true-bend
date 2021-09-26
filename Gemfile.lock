@@ -19,17 +19,23 @@ GEM
     racc (1.5.2)
     rainbow (3.0.0)
     rchardet (1.8.0)
+    regexp_parser (2.1.1)
     reverse_markdown (1.4.0)
       nokogiri
-    rubocop (0.75.0)
-      jaro_winkler (~> 1.5.1)
+    rexml (3.2.5)
+    rubocop (0.93.0)
       parallel (~> 1.10)
-      parser (>= 2.6)
+      parser (>= 2.7.1.5)
       rainbow (>= 2.2.2, < 4.0)
+      regexp_parser (>= 1.8)
+      rexml
+      rubocop-ast (>= 0.6.0)
       ruby-progressbar (~> 1.7)
-      unicode-display_width (>= 1.4.0, < 1.7)
-    rubocop-sketchup (0.11.0)
-      rubocop (>= 0.75, <= 0.75)
+      unicode-display_width (>= 1.4.0, < 2.0)
+    rubocop-ast (1.4.1)
+      parser (>= 2.7.1.5)
+    rubocop-sketchup (0.19.0)
+      rubocop (>= 0.82, <= 0.93)
     ruby-progressbar (1.11.0)
     sketchup-api-stubs (0.7.7)
     skippy (0.4.3.a)
@@ -50,7 +56,7 @@ GEM
       yard (~> 0.9)
     thor (0.20.3)
     tilt (2.0.10)
-    unicode-display_width (1.6.1)
+    unicode-display_width (1.8.0)
     yard (0.9.26)
 
 PLATFORMS
@@ -60,8 +66,8 @@ PLATFORMS
 DEPENDENCIES
   minitest
   nokogiri (~> 1.10)
-  rubocop (>= 0.75, <= 0.75)
-  rubocop-sketchup (~> 0.11.0)
+  rubocop (>= 0.82, <= 0.93)
+  rubocop-sketchup (~> 0.19.0)
   sketchup-api-stubs
   skippy (~> 0.4.1.a)
   solargraph

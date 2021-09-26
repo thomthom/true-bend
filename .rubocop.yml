@@ -1,7 +1,7 @@
 require: rubocop-sketchup
 
 inherit_from:
-  - https://raw.githubusercontent.com/SketchUp/rubocop-sketchup/master/sketchup-style.yml
+  - https://raw.githubusercontent.com/SketchUp/rubocop-sketchup/5bb95f8781bd19ea7592f3c6b9c50ee18bba71a8/sketchup-style.yml
   # - .rubocop_todo.yml
 
 AllCops:
@@ -10,6 +10,7 @@ AllCops:
   ExtraDetails: true
   Exclude:
   - src/*/vendor/**/*
+  NewCops: disable
   SketchUp:
     SourcePath: src
     TargetSketchUpVersion: 2014
@@ -17,7 +18,7 @@ AllCops:
     - profiling/**/*
     - skippy/**/*
     - tests/**/*
-  TargetRubyVersion: 2.3 # Should have been 2.0 but RuboCop dropped support.
+  TargetRubyVersion: 2.5 # Should have been 2.0 but RuboCop dropped support.
 
 
 SketchupSuggestions/Compatibility:
@@ -40,6 +41,12 @@ Layout/IndentationWidth:
   Exclude:
     - 'src/*.rb'
 
+# Ideal length should be 80. But some times it reads better to let the line
+# bleed over by a little. In this project there are enough of these cases that
+# the RuboCop max is set to 100.
+Layout/LineLength:
+  Max: 100
+
 # Spaces are fine to line up matrices etc to be more readable.
 Layout/SpaceInsideArrayLiteralBrackets:
   Enabled: false
@@ -47,6 +54,7 @@ Layout/SpaceInsideArrayLiteralBrackets:
 # Spaces are fine to line up matrices etc to be more readable.
 Layout/SpaceInsideParens:
   Enabled: false
+
 
 # Need to rescue Exception for error logging.
 Lint/RescueException:
@@ -59,12 +67,6 @@ Metrics/ClassLength:
   Exclude:
     - 'profiling/**/*'
     - 'tests/**/*'
-
-# Ideal length should be 80. But some times it reads better to let the line
-# bleed over by a little. In this project there are enough of these cases that
-# the RuboCop max is set to 100.
-Metrics/LineLength:
-  Max: 100
 
 Metrics/MethodLength:
   Max: 30
@@ -96,11 +98,6 @@ Naming/MethodName:
     - '**/observers/*.rb'
     - '**/tools/*.rb'
     - '**/manipulators/*.rb'
-
-# Bug: https://github.com/rubocop-hq/rubocop/issues/6761
-Naming/UncommunicativeMethodParamName:
-  Exclude:
-    - 'src/tt_truebend/tools/truebend.rb'
 
 
 Style/DoubleNegation:
