@@ -17,23 +17,83 @@ module TT::Plugins::TrueBend
     # Raised when the pre-conditions for the tool to operate isn't met.
     class BendError < RuntimeError; end
 
+    # @param [BoundingBoxWidget] boundingbox
+    # @param [Symbol] axis `:x`, `:y` or `:z`
+    # @return [Array<Polygon, Geom::Vector3d)]
+    def bend_polygon_and_direction(boundingbox, axis = :x)
+      get_normal = lambda { |bounds, polygon3d_index, polygon2d_index|
+        polygon = bounds.polygon(polygon3d_index)
+        normal = polygon.normal
+        unless normal.valid?
+          # If the instance is flat, work out the direction based on the normal
+          # of the flat instance and the X axis.
+          x_axis = bounds.segments.first.direction
+          z_axis = bounds.polygon(polygon2d_index).normal
+          normal = x_axis * z_axis
+        end
+        [polygon, normal]
+      }
+
+      case axis
+      when :x
+        get_normal.call(boundingbox, BB_POLYGON_FRONT, BB_POLYGON_BOTTOM)
+      when :y
+        get_normal.call(boundingbox, BB_POLYGON_LEFT, BB_POLYGON_BOTTOM)
+      when :z
+        get_normal.call(boundingbox, BB_POLYGON_BOTTOM, BB_POLYGON_FRONT)
+      else
+        raise ArgumentError, "Invalid axis: #{axis}, must be :x, :y or :z"
+      end
+    end
+
+    # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
+    # @return [Segment]
+    def bend_segment(instance, axis = :x)
+      definition = definition(instance)
+      bounds = definition.bounds
+
+      start_point = nil
+      end_point = nil
+
+      case axis
+      when :x
+        start_point = Geom::Point3d.new(bounds.min.x, 0, 0)
+        end_point = Geom::Point3d.new(bounds.max.x, 0, 0)
+      when :y
+        start_point = Geom::Point3d.new(0, bounds.min.y, 0)
+        end_point = Geom::Point3d.new(0, bounds.max.y, 0)
+      when :z
+        start_point = Geom::Point3d.new(0, 0, bounds.min.z)
+        end_point = Geom::Point3d.new(0, 0, bounds.max.z)
+      else
+        raise ArgumentError, "Invalid axis: #{axis}, must be :x, :y or :z"
+      end
+
+      start_point.transform!(instance.transformation)
+      end_point.transform!(instance.transformation)
+      Segment.new(start_point, end_point)
+    end
+
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     def initialize(instance)
       @bend_by_distance = false
       @boundingbox = BoundingBoxWidget.new(instance)
 
-      # segment = @boundingbox.segments.first
-      segment = bend_segment(instance)
-      polygon = @boundingbox.polygon(BB_POLYGON_FRONT)
+      axis = :y
 
-      normal = polygon.normal
-      unless normal.valid?
-        # If the instance is flat, work out the direction based on the normal
-        # of the flat instance and the X axis.
-        x_axis = @boundingbox.segments.first.direction
-        z_axis = @boundingbox.polygon(BB_POLYGON_BOTTOM).normal
-        normal = x_axis * z_axis
-      end
+      # segment = @boundingbox.segments.first
+      segment = bend_segment(instance, axis)
+      # polygon = @boundingbox.polygon(BB_POLYGON_FRONT)
+
+      # normal = polygon.normal
+      # unless normal.valid?
+      #   # If the instance is flat, work out the direction based on the normal
+      #   # of the flat instance and the X axis.
+      #   x_axis = @boundingbox.segments.first.direction
+      #   z_axis = @boundingbox.polygon(BB_POLYGON_BOTTOM).normal
+      #   normal = x_axis * z_axis
+      # end
+      polygon, normal = bend_polygon_and_direction(@boundingbox, axis)
       raise BendError, 'zero length distance to bend' unless normal.valid?
 
       @bender = Bender.new(instance, segment, normal)
@@ -282,20 +342,6 @@ module TT::Plugins::TrueBend
       menu.set_validation_proc(id) {
         SETTINGS.send(getter) ? MF_CHECKED : MF_ENABLED
       }
-    end
-
-    # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
-    # @return [Segment]
-    def bend_segment(instance)
-      definition = definition(instance)
-      bounds = definition.bounds
-
-      start_point = Geom::Point3d.new(bounds.min.x, 0, 0)
-      end_point = Geom::Point3d.new(bounds.max.x, 0, 0)
-
-      start_point.transform!(instance.transformation)
-      end_point.transform!(instance.transformation)
-      Segment.new(start_point, end_point)
     end
 
     def commit_bend
