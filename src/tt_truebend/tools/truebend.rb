@@ -55,6 +55,7 @@ module TT::Plugins::TrueBend
     end
 
     # rubocop:disable Metrics/MethodLength
+    # @param [Sketchup::Menu] menu
     def getMenu(menu)
       id = menu.add_item('Commit') {
         commit_bend
@@ -111,6 +112,7 @@ module TT::Plugins::TrueBend
       ERROR_REPORTER.handle(exception)
     end
 
+    # @param [Sketchup::View] view
     def deactivate(view)
       detach_observers
       view.invalidate
@@ -118,6 +120,7 @@ module TT::Plugins::TrueBend
       ERROR_REPORTER.handle(exception)
     end
 
+    # @param [Sketchup::View] view
     def suspend(view)
       update_ui
       view.invalidate
@@ -125,6 +128,7 @@ module TT::Plugins::TrueBend
       ERROR_REPORTER.handle(exception)
     end
 
+    # @param [Sketchup::View] view
     def resume(view)
       view.invalidate
     rescue Exception => exception
@@ -137,6 +141,7 @@ module TT::Plugins::TrueBend
       ERROR_REPORTER.handle(exception)
     end
 
+    # @param [Sketchup::View] view
     def onCancel(_reason, view)
       view = HighDpiView.new(view)
       reset_bend(view)
@@ -144,6 +149,8 @@ module TT::Plugins::TrueBend
       ERROR_REPORTER.handle(exception)
     end
 
+    # @param [String] text
+    # @param [Sketchup::View] view
     def onUserText(text, view)
       view = HighDpiView.new(view)
       input = VCBParser.new(text)
@@ -180,6 +187,10 @@ module TT::Plugins::TrueBend
       view.invalidate
     end
 
+    # @param [Integer] flags
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
     def onLButtonDown(flags, x, y, view)
       x, y = DPI.logical_pixels(x, y)
       view = HighDpiView.new(view)
@@ -190,6 +201,10 @@ module TT::Plugins::TrueBend
       ERROR_REPORTER.handle(exception)
     end
 
+    # @param [Integer] flags
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
     def onLButtonUp(flags, x, y, view)
       x, y = DPI.logical_pixels(x, y)
       view = HighDpiView.new(view)
@@ -206,6 +221,10 @@ module TT::Plugins::TrueBend
       ERROR_REPORTER.handle(exception)
     end
 
+    # @param [Integer] flags
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
     def onMouseMove(flags, x, y, view)
       x, y = DPI.logical_pixels(x, y)
       view = HighDpiView.new(view)
@@ -216,6 +235,7 @@ module TT::Plugins::TrueBend
       ERROR_REPORTER.handle(exception)
     end
 
+    # @return [Geom::BoundingBox]
     def getExtents
       bounds = Geom::BoundingBox.new
       bounds.add(@bender.bounds)
@@ -225,6 +245,7 @@ module TT::Plugins::TrueBend
       ERROR_REPORTER.handle(exception)
     end
 
+    # @param [Sketchup::View] view
     def draw(view)
       view = HighDpiView.new(view)
       @bender.draw(view)
@@ -287,6 +308,7 @@ module TT::Plugins::TrueBend
       model.tools.pop_tool
     end
 
+    # @param [Sketchup::View] view
     def reset_bend(view)
       @bender.reset
       @manipulator.reset
@@ -313,6 +335,7 @@ module TT::Plugins::TrueBend
       end
     end
 
+    # @param [Sketchup::Model] model
     def on_transaction(model, _type)
       model.select_tool(nil)
     rescue Exception => exception
