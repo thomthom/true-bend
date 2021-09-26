@@ -1,5 +1,6 @@
 require 'tt_truebend/constants/boundingbox'
 require 'tt_truebend/gl/boundingbox'
+require 'tt_truebend/helpers/instance'
 require 'tt_truebend/manipulators/drag_handle'
 require 'tt_truebend/observers/transaction'
 require 'tt_truebend/app_settings'
@@ -11,15 +12,18 @@ module TT::Plugins::TrueBend
   class TrueBendTool
 
     include BoundingBoxConstants
+    include InstanceHelper
 
     # Raised when the pre-conditions for the tool to operate isn't met.
     class BendError < RuntimeError; end
 
+    # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     def initialize(instance)
       @bend_by_distance = false
       @boundingbox = BoundingBoxWidget.new(instance)
 
-      segment = @boundingbox.segments.first
+      # segment = @boundingbox.segments.first
+      segment = bend_segment(instance)
       polygon = @boundingbox.polygon(BB_POLYGON_FRONT)
 
       normal = polygon.normal
@@ -257,6 +261,20 @@ module TT::Plugins::TrueBend
       menu.set_validation_proc(id) {
         SETTINGS.send(getter) ? MF_CHECKED : MF_ENABLED
       }
+    end
+
+    # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
+    # @return [Segment]
+    def bend_segment(instance)
+      definition = definition(instance)
+      bounds = definition.bounds
+
+      start_point = Geom::Point3d.new(bounds.min.x, 0, 0)
+      end_point = Geom::Point3d.new(bounds.max.x, 0, 0)
+
+      start_point.transform!(instance.transformation)
+      end_point.transform!(instance.transformation)
+      Segment.new(start_point, end_point)
     end
 
     def commit_bend
