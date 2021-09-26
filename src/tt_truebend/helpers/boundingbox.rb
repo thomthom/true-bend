@@ -7,10 +7,12 @@ module TT::Plugins::TrueBend
 
     include BoundingBoxConstants
 
+    # @return [Array<Geom::Point3d>]
     def points
       Array.new(8) { |i| corner(i) }
     end
 
+    # @return [Array<Geom::Point3d>]
     def segment_points
       [
         corner(BB_LEFT_FRONT_BOTTOM),
@@ -51,14 +53,18 @@ module TT::Plugins::TrueBend
       ]
     end
 
+    # @return [Array<Segment>]
     def segments
       segment_points.each_slice(2).map { |segment| Segment.new(*segment) }
     end
 
+    # @param [Integer] index
+    # @return [Polygon]
     def polygon(index)
       polygons[index]
     end
 
+    # @return [Array<Polygon>]
     def polygons # rubocop:disable Metrics/MethodLength
       [
         Polygon.new(

@@ -45,15 +45,18 @@ module TT::Plugins::TrueBend
       @drag
     end
 
+    # @return [Length]
     def distance
       @direction.length
     end
 
+    # @param [Length] value
     def distance=(value)
       @direction = @normal.clone unless @direction.valid?
       @direction.length = value
     end
 
+    # @return [Geom::BoundingBox]
     def bounds
       view = Sketchup.active_model.active_view
       view = HighDpiView.new(view)
@@ -63,6 +66,7 @@ module TT::Plugins::TrueBend
       bounds
     end
 
+    # @param [Sketchup::View] view
     def draw(view)
       draw_handle(view)
 
@@ -89,6 +93,9 @@ module TT::Plugins::TrueBend
     end
 
 
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
     def onLButtonDown(_flags, x, y, view)
       @mouse_position = Geom::Point3d.new(x, y, 0)
       @direction = Geom::Vector3d.new(0, 0, 0)
@@ -100,6 +107,9 @@ module TT::Plugins::TrueBend
       @mouse_down_position = @mouse_position.clone
     end
 
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
     def onLButtonUp(_flags, x, y, view)
       if @start_pick
         picked = pick_closest(x, y, view)
@@ -111,6 +121,9 @@ module TT::Plugins::TrueBend
       @drag = false
     end
 
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
     def onMouseMove(_flags, x, y, view)
       @mouse_position = Geom::Point3d.new(x, y, 0)
       if @mouse_down_position
@@ -179,6 +192,9 @@ module TT::Plugins::TrueBend
       view.draw(GL_LINES, points)
     end
 
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
     # @return [Integer] Segment index.
     def pick_segment(x, y, view)
       handle = handle_points(view)
@@ -186,6 +202,10 @@ module TT::Plugins::TrueBend
       ph.pick_segment(handle, x, y, 10)
     end
 
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
+    # @return [Geom::Point3d]
     def pick_point(x, y, view)
       index = pick_segment(x, y, view)
       return nil unless index
@@ -193,6 +213,10 @@ module TT::Plugins::TrueBend
       pick_closest(x, y, view)
     end
 
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
+    # @return [Geom::Point3d]
     def pick_closest(x, y, view)
       handle = handle_points(view)
       pick_ray = view.pickray(x, y)
@@ -200,12 +224,15 @@ module TT::Plugins::TrueBend
       points.first
     end
 
+    # @param [Sketchup::View] view
+    # @return [Array(Geom::Point3d, Geom::Point3d)]
     def handle_points(view)
       distance = view.pixels_to_model(@size, @origin)
       handle_point = @origin.offset(@normal, distance)
       [@origin, handle_point]
     end
 
+    # @param [Sketchup::View] view
     def mouse_over?(view)
       x, y = *@mouse_position.to_a
       !!pick_segment(x, y, view)

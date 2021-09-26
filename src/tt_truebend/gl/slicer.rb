@@ -56,6 +56,9 @@ module TT::Plugins::TrueBend
       slice_group.erase!
     end
 
+    # @param [Sketchup::Entities] entities
+    # @param [Geom::Transformation] transformation
+    # @return [Array<Geom::Point3d>]
     def segment_points(entities, transformation = IDENTITY)
       original_segments = edge_segments(entities, transformation)
       segments = slice_segments(original_segments, @planes)

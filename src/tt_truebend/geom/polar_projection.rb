@@ -10,12 +10,16 @@ module TT::Plugins::TrueBend
     # Transformation applied to the projected points.
     attr_accessor :transformation
 
+    # @param [Float] radius
     def initialize(radius)
       @radius = radius
       @transformation = nil
     end
 
-    # Sets the target transformation based on orgin and x-axis.
+    # Sets the target transformation based on origin and x-axis.
+    #
+    # @param [Geom::Point3d] origin
+    # @param [Geom::Vector3d] x_axis
     def axes(origin, x_axis)
       y_axis = x_axis.axes.x
       z_axis = x_axis.axes.y
@@ -23,6 +27,10 @@ module TT::Plugins::TrueBend
       nil
     end
 
+    # @param [Array<Geom::Point3d>] points
+    # @param [Boolean] convex
+    # @param [Float, nil] segment_angle
+    # @return [Array<Geom::Point3d>]
     def project(points, convex, segment_angle = nil)
       tr = convex ? Geom::Transformation.scaling(1, -1, 1) :
                     Geom::Transformation.scaling(-1, 1, 1)
@@ -54,6 +62,9 @@ module TT::Plugins::TrueBend
 
     private
 
+    # @param [Geom::Point3d] point
+    # @param [Float] angle
+    # @return [Geom::Point3d]
     def project_point(point, angle)
       x = (radius + point.y) * Math.cos(angle)
       y = (radius + point.y) * Math.sin(angle)

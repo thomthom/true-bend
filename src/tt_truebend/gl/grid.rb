@@ -8,6 +8,8 @@ module TT::Plugins::TrueBend
     attr_accessor :x_subdivs, :y_subdivs
     attr_accessor :transformation
 
+    # @param [Numeric] width
+    # @param [Numeric] height
     def initialize(width, height)
       @width = width
       @height = height
@@ -18,6 +20,7 @@ module TT::Plugins::TrueBend
       @transformation = IDENTITY
     end
 
+    # @param [Sketchup::View] view
     def draw(view)
       solid = []
       stippled = []
@@ -37,16 +40,19 @@ module TT::Plugins::TrueBend
       view.draw(GL_LINES, stippled)
     end
 
+    # @return [Array<Segment>]
     def segments
       [x_segments, y_segments].flatten
     end
 
+    # @return [Array<Geom::Point3d>]
     def segment_points
       segments.map(&:points).flatten
     end
 
     private
 
+    # @return [Array<Segment>]
     def x_grid_segments
       y_step = @height / y_subdivs
       (0..y_subdivs).map { |i|
@@ -57,6 +63,7 @@ module TT::Plugins::TrueBend
       }
     end
 
+    # @return [Array<Segment>]
     def y_grid_segments
       x_step = @width / x_subdivs
       (0..x_subdivs).map { |i|
@@ -67,6 +74,7 @@ module TT::Plugins::TrueBend
       }
     end
 
+    # @return [Array<Segment>]
     def x_segments
       result = []
       x_step = @width / x_subdivs
@@ -84,6 +92,7 @@ module TT::Plugins::TrueBend
       result
     end
 
+    # @return [Array<Segment>]
     def y_segments
       result = []
       x_step = @width / x_subdivs

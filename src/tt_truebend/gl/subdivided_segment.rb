@@ -10,6 +10,10 @@ module TT::Plugins::TrueBend
     attr_accessor :segment
     attr_accessor :subdivisions, :color, :line_width
 
+    # @param [Segment] segment
+    # @param [Integer] subdivisions
+    # @param [Sketchup::Color] color
+    # @param [Integer] line_width
     def initialize(segment, subdivisions: 12, color: [255, 128, 0], line_width: 2)
       @segment = segment
       @subdivisions = subdivisions
@@ -17,12 +21,14 @@ module TT::Plugins::TrueBend
       @line_width = line_width
     end
 
+    # @return [Geom::BoundingBox]
     def bounds
       bounds = Geom::BoundingBox.new
       bounds.add(segment.points)
       bounds
     end
 
+    # @return [Array<Geom::Point3d>]
     def points
       point1, point2 = @segment.points
       num_points = subdivisions.to_f
@@ -33,6 +39,7 @@ module TT::Plugins::TrueBend
       }
     end
 
+    # @param [Sketchup::View] view
     def draw(view)
       segment_points = lift(view, @segment.points, pixels: 0.4)
       view.line_stipple = STIPPLE_SOLID

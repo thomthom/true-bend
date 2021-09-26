@@ -12,6 +12,7 @@ module TT::Plugins::TrueBend
 
     include BoundingBoxConstants
 
+    # Raised when the pre-conditions for the tool to operate isn't met.
     class BendError < RuntimeError; end
 
     def initialize(instance)

@@ -3,6 +3,7 @@ module TT::Plugins::TrueBend
 
     attr_reader :points
 
+    # @param [Array<Geom::Point3d>] args
     def initialize(*args)
       if args.size == 1 && args.first.is_a?(Array)
         @points = args.first
@@ -14,6 +15,7 @@ module TT::Plugins::TrueBend
       end
     end
 
+    # @return [Geom::Point3d]
     def center
       total = @points.inject(ORIGIN) { |memo, point| memo + point.to_a }
       total.x /= @points.size
@@ -22,6 +24,7 @@ module TT::Plugins::TrueBend
       total
     end
 
+    # @return [Geom::Vector3d]
     def normal
       # Naive computation - just picks a triangular set and uses that for the
       # computation.
@@ -34,6 +37,7 @@ module TT::Plugins::TrueBend
       normal
     end
 
+    # @param [Geom::Transformation] transformation
     def transform!(transformation)
       @points.each { |point| point.transform!(transformation) }
       self

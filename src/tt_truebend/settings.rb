@@ -1,6 +1,8 @@
 module TT::Plugins::TrueBend
   class Settings
 
+    # @param [Symbol] key
+    # @param [Object] default
     def self.define(key, default = nil)
       read_method = boolean?(default) ? "#{key}?".to_sym : key.to_sym
       write_method = "#{key}=".to_sym
@@ -14,6 +16,7 @@ module TT::Plugins::TrueBend
       }
     end
 
+    # @param [Object] value
     def self.boolean?(value)
       value.is_a?(TrueClass) || value.is_a?(FalseClass)
     end
@@ -26,6 +29,7 @@ module TT::Plugins::TrueBend
       @cache = {}
     end
 
+    # @return [String]
     def inspect
       to_s
     end
