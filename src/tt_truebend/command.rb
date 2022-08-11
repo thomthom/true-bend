@@ -9,6 +9,9 @@ module TT::Plugins::TrueBend
     # for how UI::Command is created. `new` will create an instance of
     # UI::Command but mix itself into the instance - effectively subclassing it.
     # (yuck!)
+    #
+    # @param [String] title
+    # @param [Proc] block
     def self.new(title, &block)
       command = UI::Command.new(title) {
         begin

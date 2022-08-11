@@ -39,7 +39,7 @@ module TT::Plugins::TrueBend
     # @param [Sketchup::View] view
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     # @param [PolarProjection] projection
-    # @param [Segmenter] segmenter
+    # @param [SubdividedSegmentWidget] segmenter
     # @param [Boolean] is_convex
     def draw_projected_grid(view, instance, projection, segmenter, is_convex)
       bounds = BoundingBoxWidget.new(instance)

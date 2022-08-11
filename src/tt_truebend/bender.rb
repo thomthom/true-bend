@@ -289,7 +289,7 @@ module TT::Plugins::TrueBend
     end
 
     # @param [Array<Geom::Point3d>] mesh_points
-    # @param [Projection] projection
+    # @param [PolarProjection] projection
     # @param [Boolean] is_convex
     # @param [Float] segment_angle
     # @return [Array<Geom::Point3d>]
@@ -380,7 +380,7 @@ module TT::Plugins::TrueBend
     # @param [Geom::Point3d] center
     # @param [Geom::Vector3d] xaxis
     # @param [Geom::Vector3d] normal
-    # @param [Number] radius
+    # @param [Float] radius
     # @param [Float] start_angle in radians
     # @param [Float] end_angle in radians
     # @param [Integer] num_segments
