@@ -15,10 +15,11 @@ AllCops:
     SourcePath: src
     TargetSketchUpVersion: 2014
     Exclude:
+    - Gemfile
     - profiling/**/*
     - skippy/**/*
     - tests/**/*
-  TargetRubyVersion: 2.5 # Should have been 2.0 but RuboCop dropped support.
+  TargetRubyVersion: 2.0
 
 
 SketchupSuggestions/Compatibility:
@@ -108,6 +109,9 @@ Style/FrozenStringLiteralComment:
   Enabled: false
 
 Style/AccessorGrouping:
+  Enabled: false
+
+Style/MultilineIfModifier:
   Enabled: false
 
 Style/MultilineTernaryOperator:

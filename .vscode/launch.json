@@ -10,7 +10,7 @@
       "request": "attach",
       "cwd": "${workspaceRoot}",
       "remoteHost": "127.0.0.1",
-      "remotePort": "7000",
+      "remotePort": "6123",
       "remoteWorkspaceRoot": "${workspaceRoot}"
     }
   ]

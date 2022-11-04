@@ -1,4 +1,9 @@
 {
   "solargraph.diagnostics": true,
-  "solargraph.useBundler": true
+  "solargraph.useBundler": true,
+  "cSpell.words": [
+    "Rakefile",
+    "RuboCop",
+    "SketchUp"
+  ]
 }

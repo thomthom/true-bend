@@ -9,7 +9,8 @@
       "command": "skippy",
       "args": [
         "sketchup:debug",
-        "${input:sketchupVersion}"
+        "${input:sketchupVersion}",
+        "--port=6123"
       ],
       "runOptions": {
         "reevaluateOnRerun": false
@@ -22,15 +23,16 @@
       "id": "sketchupVersion",
       "type": "pickString",
       "description": "SketchUp Version",
-      "options": ["2021", "2020", "2019", "2018", "2017"],
-      "default": "2021"
-    },
-    {
-      "id": "buildConfig",
-      "type": "pickString",
-      "description": "Build Configuration",
-      "options": ["Debug", "Release"],
-      "default": "Debug"
+      "options": [
+        "2023",
+        "2022",
+        "2021",
+        "2020",
+        "2019",
+        "2018",
+        "2017"
+      ],
+      "default": "2022"
     }
   ]
 }
