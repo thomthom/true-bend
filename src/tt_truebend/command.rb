@@ -25,7 +25,11 @@ module TT::Plugins::TrueBend
     end
 
     # Automatically sets the large and small icon, assuming a file convention.
-    # TODO: Describe file convention.
+    #
+    # If `path` is "path/to/file.png" then this method will assume and assign the
+    # following file paths to small and large icons:
+    # - "path/to/file-24.png"
+    # - "path/to/file-32.png"
     #
     # @param [String] path
     def icon=(path)
