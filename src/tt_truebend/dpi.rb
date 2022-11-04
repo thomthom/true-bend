@@ -7,7 +7,6 @@ module TT::Plugins::TrueBend
   # Utility module for computing unit conversions based on monitor DPI.
   module DPI
 
-    # TODO: Deduplicate
     SKETCHUP_VERSION = Sketchup.version.to_i
 
     # To test scaling on a "normal" DPI monitor, use this method to force
