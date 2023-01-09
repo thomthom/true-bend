@@ -14,7 +14,7 @@ GEM
     debase-ruby_core_source (0.10.17)
     diff-lcs (1.5.0)
     e2mmap (0.1.0)
-    git (1.12.0)
+    git (1.13.0)
       addressable (~> 2.8)
       rchardet (~> 1.8)
     jaro_winkler (1.5.4)
@@ -34,10 +34,12 @@ GEM
       racc (~> 1.4)
     nokogiri (1.13.9-x86-mingw32)
       racc (~> 1.4)
+    nokogiri (1.13.9-x86_64-linux)
+      racc (~> 1.4)
     parallel (1.22.1)
     parser (3.1.2.1)
       ast (~> 2.4.1)
-    public_suffix (5.0.0)
+    public_suffix (5.0.1)
     racc (1.6.0)
     rainbow (3.1.1)
     rake (13.0.6)
@@ -98,6 +100,7 @@ GEM
 PLATFORMS
   x64-mingw32
   x86-mingw32
+  x86_64-linux
 
 DEPENDENCIES
   commonmarker (~> 0.23)
