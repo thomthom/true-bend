@@ -8,7 +8,7 @@ GEM
     backport (1.2.0)
     benchmark (0.2.0)
     builder (3.2.4)
-    commonmarker (0.23.6)
+    commonmarker (0.23.7)
     debase (0.2.4.1)
       debase-ruby_core_source (>= 0.10.2)
     debase-ruby_core_source (0.10.17)
@@ -33,6 +33,8 @@ GEM
     nokogiri (1.13.9-x64-mingw32)
       racc (~> 1.4)
     nokogiri (1.13.9-x86-mingw32)
+      racc (~> 1.4)
+    nokogiri (1.13.9-x86_64-linux)
       racc (~> 1.4)
     parallel (1.22.1)
     parser (3.1.2.1)
@@ -98,6 +100,7 @@ GEM
 PLATFORMS
   x64-mingw32
   x86-mingw32
+  x86_64-linux
 
 DEPENDENCIES
   commonmarker (~> 0.23)
