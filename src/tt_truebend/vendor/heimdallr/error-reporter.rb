@@ -413,8 +413,8 @@ rescue Exception => exception
   # Output a message to the user with information about what went wrong.
   puts "Something when wrong trying to load #{__FILE__}."
   puts "Please copy this message and forward it to the developer."
-  p error
-  puts error.backtrace
+  p exception
+  puts exception.backtrace
   # In case the file is loaded by require, or Sketchup.require stops eating
   # exceptions - reraise.
   raise
