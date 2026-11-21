@@ -29,8 +29,8 @@ group :documentation do
 end unless IS_CI_ENVIRONMENT
 
 group :analysis do
-  gem 'rubocop', '>= 1.30', '< 2.0'
+  gem 'rubocop', '>= 1.72', '< 2.0'
   gem 'rubocop-minitest', '~> 0.20'
   gem 'rubocop-rake', '~> 0.6'
-  gem 'rubocop-sketchup', '~> 1.3.0'
+  gem 'rubocop-sketchup', '~> 2.2'
 end unless IS_CI_ENVIRONMENT

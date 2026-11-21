@@ -1,7 +1,7 @@
-require: rubocop-sketchup
+plugins: rubocop-sketchup
 
 inherit_from:
-  - https://raw.githubusercontent.com/SketchUp/rubocop-sketchup/5bb95f8781bd19ea7592f3c6b9c50ee18bba71a8/sketchup-style.yml
+  - https://raw.githubusercontent.com/SketchUp/rubocop-sketchup/bce10c5e20bbb6afa831090785d902504780d06d/sketchup-style.yml
   # - .rubocop_todo.yml
 
 AllCops:
