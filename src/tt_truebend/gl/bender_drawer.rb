@@ -37,19 +37,12 @@ module TT::Plugins::TrueBend
     end
 
     # @param [Sketchup::View] view
-    # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
-    # @param [PolarProjection] projection
-    # @param [SubdividedSegmentWidget] segmenter
-    # @param [Boolean] is_convex
-    def draw_projected_grid(view, instance, projection, segmenter, is_convex)
-      bounds = BoundingBoxWidget.new(instance)
-      grid = Grid.new(bounds.width, bounds.height)
-      grid.x_subdivs = segmenter.subdivisions
-      arc_grid = projection.project(grid.segment_points, is_convex)
+    # @param [Array<Geom::Point3d>] points
+    def draw_projected_grid(view, points)
       view.line_stipple = STIPPLE_LONG_DASH
       view.line_width = 1
       view.drawing_color = 'red'
-      view.draw(GL_LINES, lift(view, arc_grid))
+      view.draw(GL_LINES, lift(view, points))
     end
 
     # @param [Sketchup::View] view

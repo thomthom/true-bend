@@ -41,7 +41,8 @@ module TT::Plugins::TrueBend
         bender.instance_variable_get(:@grid)
       end
 
-      # Yields a `Bender` for the test solid in each of the test placements.
+      # Yields a `Bender` for the test solid in each of the test placements,
+      # set up to bend towards its front, as the tool does, and towards its top.
       #
       # @yieldparam [Bender] bender
       # @yieldparam [BendSetup] setup
@@ -52,9 +53,12 @@ module TT::Plugins::TrueBend
         PLACEMENTS.each { |placement, transformation|
           instance = create_solid(X, transformation)
           corners = solid_corners(X).map { |point| point.transform(transformation) }
-          setup = bend_setup(instance)
-          bender = Bender.new(instance, setup.segment, setup.normal)
-          yield bender, setup, corners, placement
+          front = bend_setup(instance)
+          top = BendSetup.new(front.segment, transformation.zaxis)
+          { 'front' => front, 'top' => top }.each { |side, setup|
+            bender = Bender.new(instance, setup.segment, setup.normal)
+            yield bender, setup, corners, "#{placement}, towards the #{side}"
+          }
         }
       end
 

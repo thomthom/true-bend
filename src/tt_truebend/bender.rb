@@ -53,11 +53,7 @@ module TT::Plugins::TrueBend
 
       # Grid widget to visualize the how the bend geometry is mapped from its
       # original shape to the bent shape. `@grid` represent the original mesh.
-      bounds = definition(instance).bounds
-      offset = Geom::Transformation.new(bounds.min)
-      @grid = Grid.new(bounds.width, bounds.height)
-      @grid.x_subdivs = @segmenter.subdivisions
-      @grid.transformation = instance.transformation * offset
+      @grid = create_grid
     end
 
     # @return [nil]
@@ -248,7 +244,8 @@ module TT::Plugins::TrueBend
       projection = polar_projection
 
       # Projected grid
-      draw_projected_grid(view, @instance, projection, @segmenter, convex?)
+      grid_points = bend_mesh(@grid.segment_points, projection, convex?, nil)
+      draw_projected_grid(view, grid_points)
 
       # Projected mesh
       planes = slicing_planes(@segmenter)
@@ -288,7 +285,7 @@ module TT::Plugins::TrueBend
     # @param [Array<Geom::Point3d>] mesh_points
     # @param [PolarProjection] projection
     # @param [Boolean] is_convex
-    # @param [Float] segment_angle
+    # @param [Float, nil] segment_angle
     # @return [Array<Geom::Point3d>]
     def bend_mesh(mesh_points, projection, is_convex, segment_angle)
       # Polar project must be done in a coordinate system local to the
@@ -361,6 +358,24 @@ module TT::Plugins::TrueBend
       z_axis = (x_axis * @normal.reverse).normalize
       y_axis = z_axis * x_axis
       [x_axis, y_axis, z_axis]
+    end
+
+    # Creates a grid covering the extents of the instance, in the plane of the
+    # bend, with its X direction running along the reference segment.
+    #
+    # @return [Grid]
+    def create_grid
+      to_world = world_to_segment_space.inverse
+      to_segment_space = world_to_segment_space * @instance.transformation
+      bounds = definition(@instance).bounds
+      corners = Array.new(8) { |i| bounds.corner(i).transform(to_segment_space) }
+      y_min, y_max = corners.map(&:y).minmax
+      z_min = corners.map(&:z).min
+      offset = Geom::Transformation.new(Geom::Point3d.new(0, y_min, z_min))
+      grid = Grid.new(@segment.length, y_max - y_min)
+      grid.x_subdivs = subdivisions
+      grid.transformation = to_world * offset
+      grid
     end
 
     # Creates a transformation that convert world coordinates to a local
