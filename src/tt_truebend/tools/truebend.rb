@@ -16,28 +16,29 @@ module TT::Plugins::TrueBend
     # Raised when the pre-conditions for the tool to operate isn't met.
     class BendError < RuntimeError; end
 
+    # The handle for the direction the instance is currently set up to bend in.
+    ACTIVE_HANDLE_COLOR = 'red'.freeze
+    # The handles for the other directions the instance can be bent in.
+    INACTIVE_HANDLE_COLOR = [96, 96, 96].freeze
+
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     def initialize(instance)
+      @instance = instance
       @bend_by_distance = false
       @boundingbox = BoundingBoxWidget.new(instance)
 
-      axes = BendAxes.along(instance, BendAxes::X).first
-      raise BendError, 'zero length distance to bend' unless axes.can_bend?
-
-      @bender = Bender.new(instance, axes.segment, axes.normal)
-      @bender.segmented = SETTINGS.bend_segmented?
-      @bender.soft_smooth = SETTINGS.bend_soft_smooth?
-
-      @manipulator = DragHandle.new(axes.face_center, axes.normal, color: 'red')
-
+      # The ways the instance can be bent, each with the handle to bend it by.
+      # @return [Hash{BendAxes => DragHandle}]
+      @handles = {}
+      # The handle for the way the instance is currently set up to bend.
+      @manipulator = nil
+      @bender = nil
       @cached_direction = nil
-      @manipulator.on_drag { |direction|
-        @cached_direction ||= @bender.direction
-        @bender.bend(@cached_direction + direction)
-      }
-      @manipulator.on_drag_complete {
-        @cached_direction = nil
-      }
+      unless can_bend_along?(BendAxes::X)
+        raise BendError, 'zero length distance to bend'
+      end
+
+      select_axis(BendAxes::X)
 
       @observer = TransactionObserver.new(&method(:on_transaction))
     end
@@ -182,7 +183,13 @@ module TT::Plugins::TrueBend
     def onLButtonDown(flags, x, y, view)
       x, y = DPI.logical_pixels(x, y)
       view = HighDpiView.new(view)
-      @manipulator.onLButtonDown(flags, x, y, view)
+      # The active handle gets the first go, in case handles overlap on screen.
+      handles = [@manipulator] + (@handles.values - [@manipulator])
+      picked = handles.find { |handle|
+        handle.onLButtonDown(flags, x, y, view)
+        handle.picked?
+      }
+      select_bend(@handles.key(picked)) if picked && picked != @manipulator
       view.invalidate
       update_ui
     rescue Exception => exception
@@ -196,7 +203,7 @@ module TT::Plugins::TrueBend
     def onLButtonUp(flags, x, y, view)
       x, y = DPI.logical_pixels(x, y)
       view = HighDpiView.new(view)
-      @manipulator.onLButtonUp(flags, x, y, view)
+      @handles.each_value { |handle| handle.onLButtonUp(flags, x, y, view) }
       update_ui
       view.invalidate
     rescue Exception => exception
@@ -216,7 +223,7 @@ module TT::Plugins::TrueBend
     def onMouseMove(flags, x, y, view)
       x, y = DPI.logical_pixels(x, y)
       view = HighDpiView.new(view)
-      @manipulator.onMouseMove(flags, x, y, view)
+      @handles.each_value { |handle| handle.onMouseMove(flags, x, y, view) }
       update_ui
       view.invalidate
     rescue Exception => exception
@@ -227,7 +234,7 @@ module TT::Plugins::TrueBend
     def getExtents
       bounds = Geom::BoundingBox.new
       bounds.add(@bender.bounds)
-      bounds.add(@manipulator.bounds)
+      @handles.each_value { |handle| bounds.add(handle.bounds) }
       bounds
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
@@ -238,6 +245,7 @@ module TT::Plugins::TrueBend
       view = HighDpiView.new(view)
       @bender.draw(view)
       @boundingbox.draw(view) if SETTINGS.debug_draw_boundingbox?
+      @handles.each_value { |handle| handle.draw(view) unless handle == @manipulator }
       @manipulator.draw(view)
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
@@ -272,6 +280,53 @@ module TT::Plugins::TrueBend
       }
     end
 
+    # @param [Integer] axis `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`
+    def can_bend_along?(axis)
+      BendAxes.along(@instance, axis).all?(&:can_bend?)
+    end
+
+    # Sets which axis of the instance to bend it along. This resets the bend.
+    #
+    # @param [Integer] axis `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`
+    def select_axis(axis)
+      options = BendAxes.along(@instance, axis)
+      @handles = options.each_with_object({}) { |axes, handles|
+        handles[axes] = create_handle(axes)
+      }
+      select_bend(options.first)
+    end
+
+    # Sets which of the directions on offer to bend the instance in. This resets
+    # the bend.
+    #
+    # @param [BendAxes] axes One of the keys in `@handles`.
+    def select_bend(axes)
+      subdivisions = @bender ? @bender.subdivisions : nil
+      @bender = Bender.new(@instance, axes.segment, axes.normal)
+      @bender.segmented = SETTINGS.bend_segmented?
+      @bender.soft_smooth = SETTINGS.bend_soft_smooth?
+      @bender.subdivisions = subdivisions if subdivisions
+      @cached_direction = nil
+
+      @manipulator = @handles[axes]
+      @handles.each_value { |handle| handle.color = INACTIVE_HANDLE_COLOR }
+      @manipulator.color = ACTIVE_HANDLE_COLOR
+    end
+
+    # @param [BendAxes] axes
+    # @return [DragHandle]
+    def create_handle(axes)
+      handle = DragHandle.new(axes.face_center, axes.normal)
+      handle.on_drag { |direction|
+        @cached_direction ||= @bender.direction
+        @bender.bend(@cached_direction + direction)
+      }
+      handle.on_drag_complete {
+        @cached_direction = nil
+      }
+      handle
+    end
+
     def commit_bend
       return unless @bender.can_bend?
 
@@ -285,7 +340,7 @@ module TT::Plugins::TrueBend
     # @param [Sketchup::View] view
     def reset_bend(view)
       @bender.reset
-      @manipulator.reset
+      @handles.each_value(&:reset)
       update_ui
       view.invalidate
     end

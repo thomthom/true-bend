@@ -66,9 +66,17 @@ module TT::Plugins::TrueBend
       end
 
       # @param [TrueBendTool] tool
-      # @return [DragHandle]
+      # @return [DragHandle] The handle for the direction the tool is set up to
+      #   bend in.
       def handle_of(tool)
         tool.instance_variable_get(:@manipulator)
+      end
+
+      # @param [TrueBendTool] tool
+      # @return [Array<DragHandle>] The handles for the directions the instance
+      #   can be bent in, in the order `BendAxes.along` gives the directions.
+      def handles_of(tool)
+        tool.instance_variable_get(:@handles).values
       end
 
       # @param [TrueBendTool] tool
@@ -92,13 +100,16 @@ module TT::Plugins::TrueBend
         Sketchup.active_model.active_view.camera = camera
       end
 
-      # Looks at the bend handle of the test solid from close by and from the
+      # Looks at a bend handle of the test solid from close by and from the
       # side, so that a drag along the handle covers many pixels.
       #
       # @param [TrueBendTool] tool
-      def look_at_handle(tool)
-        target = handle_of(tool).origin
-        eye = target.offset(Geom::Vector3d.new(40, 0, 20))
+      # @param [DragHandle] handle
+      def look_at_handle(tool, handle = handle_of(tool))
+        target = handle.origin
+        # Two directions across the handle.
+        across, upwards = handle.normal.axes
+        eye = target.offset(across, 40).offset(upwards, 20)
         camera = Sketchup::Camera.new(eye, target, Z_AXIS)
         Sketchup.active_model.active_view.camera = camera
       end
@@ -142,14 +153,14 @@ module TT::Plugins::TrueBend
         }
       end
 
-      # Drags the bend handle, from the middle of it.
+      # Drags a bend handle, from the middle of it.
       #
       # @param [TrueBendTool] tool
       # @param [Float] distance How far to drag it away from the instance.
       #   Negative to drag it into the instance.
-      def drag_handle(tool, distance)
+      # @param [DragHandle] handle
+      def drag_handle(tool, distance, handle = handle_of(tool))
         view = HighDpiView.new(Sketchup.active_model.active_view)
-        handle = handle_of(tool)
         half_length = view.pixels_to_model(handle.size / 2, handle.origin)
         middle = handle.origin.offset(handle.normal, half_length)
         target = middle.offset(handle.normal, distance)
@@ -236,6 +247,23 @@ module TT::Plugins::TrueBend
         assert_vector(Geom::Vector3d.new(0, -1, 0), handle.normal.normalize)
       end
 
+      def test_initialize_has_a_handle_for_each_direction_to_bend_in
+        instance = create_solid(X)
+
+        tool = TrueBendTool.new(instance)
+
+        handles = handles_of(tool)
+        directions = BendAxes.along(instance, X)
+        assert_equal(2, handles.size)
+        %w[Front Top].each_with_index { |face, index|
+          assert_point(directions[index].face_center, handles[index].origin, face)
+          assert_vector(directions[index].normal, handles[index].normal, face)
+        }
+        assert_same(handles.first, handle_of(tool), 'The front handle is the one in use')
+        assert_equal(TrueBendTool::ACTIVE_HANDLE_COLOR, handles.first.color)
+        assert_equal(TrueBendTool::INACTIVE_HANDLE_COLOR, handles.last.color)
+      end
+
       def test_initialize_flat_instance_bends_towards_the_front
         [Y, Z].each { |axis|
           instance = create_flat_instance(axis)
@@ -304,6 +332,48 @@ module TT::Plugins::TrueBend
 
         assert_in_delta(90.degrees, bender_of(tool).angle, drag_tolerance(tool, 2))
         assert(bender_of(tool).concave?)
+      end
+
+      def test_drag_the_other_handle_bends_towards_the_top
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        front, top = handles_of(tool)
+        look_at_handle(tool, top)
+
+        drag_handle(tool, QUARTER_CIRCLE_DRAG, top)
+
+        bender = bender_of(tool)
+        assert_in_delta(90.degrees, bender.angle, drag_tolerance(tool))
+        assert(bender.concave?)
+        assert_vector(Z_AXIS, bender.direction.normalize)
+        assert_same(top, handle_of(tool), 'The handle that is dragged is the one in use')
+        assert_equal(TrueBendTool::ACTIVE_HANDLE_COLOR, top.color)
+        assert_equal(TrueBendTool::INACTIVE_HANDLE_COLOR, front.color)
+      end
+
+      def test_drag_the_other_handle_starts_a_new_bend
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = QUARTER_CIRCLE_DRAG
+        top = handles_of(tool).last
+        look_at_handle(tool, top)
+
+        drag_handle(tool, QUARTER_CIRCLE_DRAG / 2.0, top)
+
+        assert_in_delta(45.degrees, bender_of(tool).angle, drag_tolerance(tool))
+        assert_vector(Z_AXIS, bender_of(tool).direction.normalize)
+      end
+
+      def test_drag_the_other_handle_keeps_the_number_of_segments
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        type(tool, '8s')
+        top = handles_of(tool).last
+        look_at_handle(tool, top)
+
+        drag_handle(tool, QUARTER_CIRCLE_DRAG, top)
+
+        assert_equal(8, bender_of(tool).subdivisions)
       end
 
       def test_drag_beside_the_handle_does_nothing

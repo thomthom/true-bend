@@ -45,6 +45,12 @@ module TT::Plugins::TrueBend
       @drag
     end
 
+    # Whether the handle is being held, from the mouse button going down on it
+    # until the button is released.
+    def picked?
+      !@start_pick.nil?
+    end
+
     # @return [Length]
     def distance
       @direction.length
@@ -117,6 +123,7 @@ module TT::Plugins::TrueBend
         @events[:drag_complete].call(@direction) if @events[:drag_complete]
       end
 
+      @start_pick = nil
       @mouse_down_position = nil
       @drag = false
     end
