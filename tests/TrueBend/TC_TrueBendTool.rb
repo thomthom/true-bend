@@ -200,6 +200,15 @@ module TT::Plugins::TrueBend
         drag(tool, position, release_position)
       end
 
+      # @param [TrueBendTool] tool
+      # @param [Integer] axis
+      # @return [Array(Numeric, Numeric)] The middle of the button for the
+      #   axis, in device pixels.
+      def button_position(tool, axis)
+        buttons = tool.instance_variable_get(:@axis_buttons)
+        DPI.device_pixels(*buttons.center(axis))
+      end
+
       # The edges of the bounds that are picked in the tests, as the corners
       # they run between, for each axis. They are the ones around the left end
       # of the top of the bounds, which keep clear of the bend handles.
@@ -483,6 +492,63 @@ module TT::Plugins::TrueBend
       end
 
 
+      def test_click_axis_button_selects_the_axis
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+
+        click(tool, button_position(tool, Y))
+        assert_bend(tool, instance, Y, 0, 'Green button')
+
+        click(tool, button_position(tool, Z))
+        assert_bend(tool, instance, Z, 0, 'Blue button')
+
+        click(tool, button_position(tool, X))
+        assert_bend(tool, instance, X, 0, 'Red button')
+
+        assert_equal(0, @beeps)
+      end
+
+      def test_click_axis_button_again_switches_the_bend_direction
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+
+        click(tool, button_position(tool, X))
+        assert_bend(tool, instance, X, 1, 'Second click')
+
+        click(tool, button_position(tool, X))
+        assert_bend(tool, instance, X, 0, 'Third click')
+      end
+
+      def test_click_axis_button_refuses_an_axis_without_length
+        instance = create_flat_instance(Z)
+        tool = TrueBendTool.new(instance)
+
+        click(tool, button_position(tool, Z))
+
+        assert_equal(1, @beeps)
+        assert_bend(tool, instance, X, 0)
+      end
+
+      def test_click_axis_button_needs_the_mouse_released_on_the_button
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+
+        click(tool, button_position(tool, Y), button_position(tool, Z))
+
+        assert_bend(tool, instance, X, 0)
+      end
+
+      def test_click_axis_button_resets_the_bend
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 5
+        assert(bender_of(tool).bending?)
+
+        click(tool, button_position(tool, Y))
+
+        refute(bender_of(tool).bending?)
+      end
+
       def test_click_bounds_edge_selects_the_axis_it_runs_along
         instance = create_solid(X)
         look_at(instance)
@@ -532,6 +598,18 @@ module TT::Plugins::TrueBend
 
         click(tool, edge_position(instance, Y), empty_position)
 
+        assert_bend(tool, instance, X, 0)
+      end
+
+      def test_click_away_from_buttons_and_edges_keeps_the_bend
+        instance = create_solid(X)
+        look_at(instance)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 5
+
+        click(tool, empty_position)
+
+        assert(bender_of(tool).bending?)
         assert_bend(tool, instance, X, 0)
       end
 

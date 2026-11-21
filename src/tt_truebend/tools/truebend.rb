@@ -1,3 +1,4 @@
+require 'tt_truebend/gl/axis_buttons'
 require 'tt_truebend/gl/boundingbox'
 require 'tt_truebend/helpers/instance'
 require 'tt_truebend/manipulators/drag_handle'
@@ -40,6 +41,7 @@ module TT::Plugins::TrueBend
       @instance = instance
       @bend_by_distance = false
       @boundingbox = BoundingBoxWidget.new(instance)
+      @axis_buttons = AxisButtons.new
 
       # The ways the instance can be bent, each with the handle to bend it by.
       # @return [Hash{BendAxes => DragHandle}]
@@ -58,6 +60,7 @@ module TT::Plugins::TrueBend
       axis = axes.find { |candidate| can_bend_along?(candidate) }
       raise BendError, 'zero length distance to bend' if axis.nil?
 
+      @axis_buttons.disabled = axes.reject { |candidate| can_bend_along?(candidate) }
       select_axis(axis)
 
       @observer = TransactionObserver.new(&method(:on_transaction))
@@ -173,14 +176,11 @@ module TT::Plugins::TrueBend
     def onLButtonDown(flags, x, y, view)
       x, y = DPI.logical_pixels(x, y)
       view = HighDpiView.new(view)
-      # The active handle gets the first go, in case handles overlap on screen.
-      handles = [@manipulator] + (@handles.values - [@manipulator])
-      picked = handles.find { |handle|
-        handle.onLButtonDown(flags, x, y, view)
-        handle.picked?
-      }
-      select_bend(@handles.key(picked)) if picked && picked != @manipulator
-      @pressed_axis = picked ? nil : axis_at(x, y, view)
+      # The buttons are in front of everything else.
+      @pressed_axis = @axis_buttons.pick(x, y)
+      unless @pressed_axis || press_handle(flags, x, y, view)
+        @pressed_axis = axis_at(x, y, view)
+      end
       view.invalidate
       update_ui
     rescue Exception => exception
@@ -253,6 +253,7 @@ module TT::Plugins::TrueBend
       @boundingbox.draw_axis(view, @hover_axis, HOVER_EDGE_WIDTH) if @hover_axis
       @handles.each_value { |handle| handle.draw(view) unless handle == @manipulator }
       @manipulator.draw(view)
+      draw_axis_buttons(view)
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
     end
@@ -262,6 +263,24 @@ module TT::Plugins::TrueBend
     # @param [Integer] axis `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`
     def can_bend_along?(axis)
       BendAxes.along(@instance, axis).all?(&:can_bend?)
+    end
+
+    # Offers the mouse button going down to the handles.
+    #
+    # @param [Integer] flags
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
+    # @return [DragHandle, nil] The handle that was picked.
+    def press_handle(flags, x, y, view)
+      # The active handle gets the first go, in case handles overlap on screen.
+      handles = [@manipulator] + (@handles.values - [@manipulator])
+      picked = handles.find { |handle|
+        handle.onLButtonDown(flags, x, y, view)
+        handle.picked?
+      }
+      select_bend(@handles.key(picked)) if picked && picked != @manipulator
+      picked
     end
 
     # Bends along the given axis. Choosing the axis already in use switches to
@@ -278,14 +297,17 @@ module TT::Plugins::TrueBend
       end
     end
 
-    # The axis that a click at the given position in the viewport chooses. The
-    # edges of the bounds of the instance stand for the axis they run along.
+    # The axis that a click at the given position in the viewport chooses.
+    # There is a button for each axis, and the edges of the bounds of the
+    # instance stand for the axis they run along.
     #
     # @param [Integer] x
     # @param [Integer] y
     # @param [Sketchup::View] view
     # @return [Integer, nil] `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`
     def axis_at(x, y, view)
+      axis = @axis_buttons.pick(x, y)
+      return axis if axis
       # The handles go before the edges they are in front of.
       return nil if @handles.each_value.any? { |handle| handle.at?(x, y, view) }
 
@@ -305,6 +327,18 @@ module TT::Plugins::TrueBend
       else
         "No length to bend along the #{name}"
       end
+    end
+
+    # @param [Sketchup::View] view
+    def draw_axis_buttons(view)
+      @axis_buttons.selected = @axes.axis
+      @axis_buttons.hovered = @hover_axis
+      if @hover_axis
+        @axis_buttons.text = axis_hint(@hover_axis)
+      else
+        @axis_buttons.text = "Bending along the #{AXIS_NAMES[@axes.axis].downcase}"
+      end
+      @axis_buttons.draw(view)
     end
 
     # Sets which axis of the instance to bend it along. This resets the bend.
@@ -377,8 +411,8 @@ module TT::Plugins::TrueBend
         Sketchup.status_text = 'Drag to adjust the amount of bend.'
       else
         Sketchup.status_text = 'Pick a handle to start bending the instance. ' \
-                               'Click an edge of the bounding box, or use the arrow ' \
-                               'keys, to bend along another axis.'
+                               'Click an axis button or an edge of the bounding box, ' \
+                               'or use the arrow keys, to bend along another axis.'
       end
       if bend_by_distance?
         Sketchup.vcb_label = 'Distance'
