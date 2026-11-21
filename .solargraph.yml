@@ -1,4 +1,8 @@
 require_paths:
+- "C:/Program Files/SketchUp/SketchUp 2027/SketchUp/Tools"
+- "C:/Program Files/SketchUp/SketchUp 2026/SketchUp/Tools"
+- "C:/Program Files/SketchUp/SketchUp 2025/SketchUp/Tools"
+- "C:/Program Files/SketchUp/SketchUp 2024/Tools"
 - "C:/Program Files/SketchUp/SketchUp 2023/Tools"
 - "C:/Program Files/SketchUp/SketchUp 2022/Tools"
 - "C:/Program Files/SketchUp/SketchUp 2021/Tools"
