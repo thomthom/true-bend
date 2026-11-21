@@ -51,7 +51,7 @@ module TT::Plugins::TrueBend
       def self.scale_factor
         UI.scale_factor
       end
-    else
+    else # rubocop:disable Lint/DuplicateBranch
       # @return [Float]
       def self.scale_factor
         SETTINGS.dpi_scale_factor

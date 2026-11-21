@@ -420,7 +420,7 @@ module TT::Plugins::TrueBend
     # @return [Length]
     def curve_length(points)
       total = 0.0
-      (0...points.size - 1).each { |i|
+      (0...(points.size - 1)).each { |i|
         total += points[i].distance(points[i + 1])
       }
       total.to_l

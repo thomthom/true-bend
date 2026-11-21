@@ -57,7 +57,7 @@ module TT::Plugins::TrueBend
       # TODO(thomthom): Include Hash? Likely value to store.
       case value
       when String
-        value.gsub(/"/, '\\"')
+        value.gsub('"', '\\"')
       when Array
         value.map { |sub_value| escape_quotes(sub_value) }
       else

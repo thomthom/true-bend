@@ -161,11 +161,9 @@ module TT::Plugins::TrueBend
       DPI.to_logical(@view.vpheight)
     end
 
-    # rubocop:disable Lint/MissingSuper, Style/MissingRespondToMissing
-    def method_missing(method_sym, *args, &block)
+    def method_missing(method_sym, *args, &block) # rubocop:disable Style/MissingRespondToMissing
       @view.send(method_sym, *args, &block)
     end
-    # rubocop:enable Lint/MissingSuper, Style/MissingRespondToMissing
 
   end # class
 end # module
