@@ -46,7 +46,7 @@ module TT::Plugins::TrueBend
       tool = TrueBendTool.new(instances.first)
       model.tools.push_tool(tool)
     rescue TrueBendTool::BendError
-      message = 'Unable to bend because the distance along the x-axis is zero.'
+      message = 'Unable to bend because the instance has no length along any of its axes.'
       UI.messagebox(message)
     end
   end

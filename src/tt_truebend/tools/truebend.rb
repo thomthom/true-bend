@@ -23,6 +23,14 @@ module TT::Plugins::TrueBend
     # The handles for the other directions the instance can be bent in.
     INACTIVE_HANDLE_COLOR = [96, 96, 96].freeze
 
+    # The arrow keys pick the axis to bend along, the same way they lock the
+    # native tools to an axis.
+    AXIS_KEYS = {
+      VK_RIGHT => BendAxes::X,
+      VK_LEFT  => BendAxes::Y,
+      VK_UP    => BendAxes::Z,
+    }.freeze
+
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     def initialize(instance)
       @instance = instance
@@ -32,15 +40,17 @@ module TT::Plugins::TrueBend
       # The ways the instance can be bent, each with the handle to bend it by.
       # @return [Hash{BendAxes => DragHandle}]
       @handles = {}
-      # The handle for the way the instance is currently set up to bend.
+      # The way the instance is currently set up to bend, and the handle for it.
+      @axes = nil
       @manipulator = nil
       @bender = nil
       @cached_direction = nil
-      unless can_bend_along?(BendAxes::X)
-        raise BendError, 'zero length distance to bend'
-      end
+      # Bend along the red axis unless the instance has no length along it.
+      axes = [BendAxes::X, BendAxes::Y, BendAxes::Z]
+      axis = axes.find { |candidate| can_bend_along?(candidate) }
+      raise BendError, 'zero length distance to bend' if axis.nil?
 
-      select_axis(BendAxes::X)
+      select_axis(axis)
 
       @observer = TransactionObserver.new(&method(:on_transaction))
     end
@@ -90,6 +100,30 @@ module TT::Plugins::TrueBend
     def onCancel(_reason, view)
       view = HighDpiView.new(view)
       reset_bend(view)
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
+    end
+
+    # @param [Integer] key
+    # @param [Integer] _repeat
+    # @param [Integer] _flags
+    # @param [Sketchup::View] view
+    def onKeyDown(key, _repeat, _flags, view)
+      axis = AXIS_KEYS[key]
+      return false if axis.nil? || @manipulator.drag?
+
+      if axis == @axes.axis
+        # Pressing the key for the current axis again switches to the other
+        # direction the instance can be bent in along that axis.
+        select_bend((@handles.keys - [@axes]).first)
+      elsif can_bend_along?(axis)
+        select_axis(axis)
+      else
+        UI.beep
+      end
+      update_ui
+      view.invalidate
+      true
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
     end
@@ -237,6 +271,7 @@ module TT::Plugins::TrueBend
       @bender.subdivisions = subdivisions if subdivisions
       @cached_direction = nil
 
+      @axes = axes
       @manipulator = @handles[axes]
       @handles.each_value { |handle| handle.color = INACTIVE_HANDLE_COLOR }
       @manipulator.color = ACTIVE_HANDLE_COLOR
@@ -282,7 +317,8 @@ module TT::Plugins::TrueBend
       if @manipulator.drag?
         Sketchup.status_text = 'Drag to adjust the amount of bend.'
       else
-        Sketchup.status_text = 'Pick a handle to start bending the instance.'
+        Sketchup.status_text = 'Pick a handle to start bending the instance. ' \
+                               'Arrow keys = bend along the red, green or blue axis.'
       end
       if bend_by_distance?
         Sketchup.vcb_label = 'Distance'

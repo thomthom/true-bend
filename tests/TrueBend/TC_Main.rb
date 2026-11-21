@@ -22,7 +22,7 @@ module TT::Plugins::TrueBend
       Z = BendAxes::Z
 
       SELECT_ONE_INSTANCE = 'Select a single Group or Component to bend.'.freeze
-      UNABLE_TO_BEND = 'Unable to bend because the distance along the x-axis is zero.'.freeze
+      NO_LENGTH = 'Unable to bend because the instance has no length along any of its axes.'.freeze
 
       def setup
         start_with_empty_model
@@ -112,13 +112,23 @@ module TT::Plugins::TrueBend
         assert_equal(tool_name, active_tool_name)
       end
 
-      def test_activate_true_bend_tells_when_the_instance_has_no_length_along_red
+      def test_activate_true_bend_starts_the_tool_without_length_along_red
         instance = create_flat_instance(X)
+
+        activate_true_bend(instance)
+
+        assert_empty(@messages)
+        assert_equal('RubyTool', active_tool_name)
+      end
+
+      def test_activate_true_bend_tells_when_the_instance_has_no_length
+        instance = Sketchup.active_model.entities.add_group
+        instance.entities.add_cpoint(Geom::Point3d.new(1, 2, 3))
         tool_name = active_tool_name
 
         activate_true_bend(instance)
 
-        assert_equal([UNABLE_TO_BEND], @messages)
+        assert_equal([NO_LENGTH], @messages)
         assert_equal(tool_name, active_tool_name)
       end
 

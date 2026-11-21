@@ -60,9 +60,45 @@ module TT::Plugins::TrueBend
       end
 
       # @param [TrueBendTool] tool
+      # @param [Integer] key
+      # @return [Boolean] Whether the tool handled the key.
+      def press(tool, key)
+        without_user_feedback {
+          tool.onKeyDown(key, 1, 0, Sketchup.active_model.active_view)
+        }
+      end
+
+      # @param [TrueBendTool] tool
+      # @return [BendAxes] The way the tool is set up to bend the instance.
+      def axes_of(tool)
+        tool.instance_variable_get(:@axes)
+      end
+
+      # @param [TrueBendTool] tool
       # @return [Bender]
       def bender_of(tool)
         tool.instance_variable_get(:@bender)
+      end
+
+      # Asserts that the tool is set up to bend the instance along the given
+      # axis, towards the given one of the two faces on offer for that axis.
+      #
+      # @param [TrueBendTool] tool
+      # @param [Sketchup::Group] instance
+      # @param [Integer] axis
+      # @param [Integer] face_index
+      def assert_bend(tool, instance, axis, face_index, message = nil)
+        expected = BendAxes.along(instance, axis)[face_index]
+        axes = axes_of(tool)
+        assert_equal(AXIS_NAMES[axis], AXIS_NAMES[axes.axis], message)
+        assert_vector(expected.normal, axes.normal, message)
+        # The bend itself has to be set up the same way.
+        bender = bender_of(tool)
+        assert_point(expected.segment.start, bender.segment.start, message)
+        assert_point(expected.segment.end, bender.segment.end, message)
+        bender.distance = 1
+        assert_vector(expected.normal, bender.direction, message)
+        bender.reset
       end
 
       # @param [TrueBendTool] tool
@@ -197,6 +233,14 @@ module TT::Plugins::TrueBend
       end
 
 
+      def test_initialize_bends_along_red_towards_the_front
+        instance = create_solid(X)
+
+        tool = TrueBendTool.new(instance)
+
+        assert_bend(tool, instance, X, 0)
+      end
+
       def test_initialize_bends_along_the_red_axis_through_the_origin
         instance = create_solid(X)
 
@@ -277,12 +321,20 @@ module TT::Plugins::TrueBend
         }
       end
 
-      def test_initialize_refuses_an_instance_without_length_along_red
+      def test_initialize_falls_back_to_green_without_length_along_red
         instance = create_flat_instance(X)
 
-        assert_raises(TrueBendTool::BendError) {
-          TrueBendTool.new(instance)
-        }
+        tool = TrueBendTool.new(instance)
+
+        assert_bend(tool, instance, Y, 0)
+      end
+
+      def test_initialize_falls_back_to_blue_without_length_along_red_and_green
+        instance = create_line_instance(Z)
+
+        tool = TrueBendTool.new(instance)
+
+        assert_bend(tool, instance, Z, 0)
       end
 
       def test_initialize_refuses_an_instance_without_length
@@ -292,6 +344,113 @@ module TT::Plugins::TrueBend
         assert_raises(TrueBendTool::BendError) {
           TrueBendTool.new(group)
         }
+      end
+
+
+      def test_on_key_down_arrow_keys_select_the_axis
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+
+        assert(press(tool, VK_LEFT), 'Left arrow handled')
+        assert_bend(tool, instance, Y, 0, 'Left arrow')
+
+        assert(press(tool, VK_UP), 'Up arrow handled')
+        assert_bend(tool, instance, Z, 0, 'Up arrow')
+
+        assert(press(tool, VK_RIGHT), 'Right arrow handled')
+        assert_bend(tool, instance, X, 0, 'Right arrow')
+
+        assert_equal(0, @beeps)
+      end
+
+      def test_on_key_down_repeated_key_switches_the_bend_direction
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        keys = { VK_RIGHT => X, VK_LEFT => Y, VK_UP => Z }
+
+        keys.each { |key, axis|
+          name = AXIS_NAMES[axis]
+          press(tool, key) unless axis == X # The tool starts out on red.
+          assert_bend(tool, instance, axis, 0, "Selecting #{name}")
+
+          assert(press(tool, key), "Repeated key for #{name} handled")
+          assert_bend(tool, instance, axis, 1, "Repeating the key for #{name}")
+
+          press(tool, key)
+          assert_bend(tool, instance, axis, 0, "Repeating the key for #{name} again")
+        }
+        assert_equal(0, @beeps)
+      end
+
+      def test_on_key_down_selecting_another_axis_starts_at_its_default_direction
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        press(tool, VK_RIGHT)
+        assert_bend(tool, instance, X, 1)
+
+        press(tool, VK_LEFT)
+        press(tool, VK_RIGHT)
+
+        assert_bend(tool, instance, X, 0)
+      end
+
+      def test_on_key_down_refuses_an_axis_without_length
+        instance = create_flat_instance(Z)
+        tool = TrueBendTool.new(instance)
+
+        assert(press(tool, VK_UP), 'Up arrow handled')
+
+        assert_equal(1, @beeps)
+        assert_bend(tool, instance, X, 0)
+      end
+
+      def test_on_key_down_refuses_every_other_axis_of_a_line
+        instance = create_line_instance(Y)
+        tool = TrueBendTool.new(instance)
+        assert_bend(tool, instance, Y, 0)
+
+        press(tool, VK_RIGHT)
+        press(tool, VK_UP)
+
+        assert_equal(2, @beeps)
+        assert_bend(tool, instance, Y, 0)
+      end
+
+      def test_on_key_down_ignores_other_keys
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+
+        refute(press(tool, VK_DOWN), 'Down arrow')
+        refute(press(tool, VK_SHIFT), 'Shift')
+
+        assert_equal(0, @beeps)
+        assert_bend(tool, instance, X, 0)
+      end
+
+      def test_on_key_down_resets_the_bend
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 5
+        assert(bender_of(tool).bending?)
+
+        press(tool, VK_LEFT)
+
+        refute(bender_of(tool).bending?)
+      end
+
+      def test_on_key_down_keeps_the_number_of_segments
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        without_user_feedback {
+          tool.onUserText('8s', Sketchup.active_model.active_view)
+        }
+        assert_equal(8, bender_of(tool).subdivisions)
+
+        press(tool, VK_LEFT)
+        assert_equal(8, bender_of(tool).subdivisions, 'Another axis')
+
+        press(tool, VK_LEFT)
+        assert_equal(8, bender_of(tool).subdivisions, 'Other direction')
       end
 
 

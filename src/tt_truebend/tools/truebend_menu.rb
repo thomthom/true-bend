@@ -1,8 +1,12 @@
 require 'tt_truebend/app_settings'
+require 'tt_truebend/bend_axes'
 
 module TT::Plugins::TrueBend
   # The context menu of `TrueBendTool`.
   module TrueBendMenu
+
+    # Menu titles for the axes an instance can be bent along, by axis index.
+    AXIS_NAMES = ['Red Axis', 'Green Axis', 'Blue Axis'].freeze
 
     # rubocop:disable Metrics/MethodLength
     # @param [Sketchup::Menu] menu
@@ -21,6 +25,8 @@ module TT::Plugins::TrueBend
         @bender.can_bend? ? MF_ENABLED : MF_DISABLED | MF_GRAYED
       }
 
+      menu.add_separator
+      add_axis_menus(menu)
       menu.add_separator
 
       id = menu.add_item('Segmented') {
@@ -51,6 +57,27 @@ module TT::Plugins::TrueBend
     # rubocop:enable Metrics/MethodLength
 
     private
+
+    # @param [Sketchup::Menu] menu
+    def add_axis_menus(menu)
+      submenu = menu.add_submenu('Bend Along')
+      AXIS_NAMES.each_with_index { |name, axis|
+        id = submenu.add_item(name) {
+          select_axis(axis) unless axis == @axes.axis
+          update_ui
+          Sketchup.active_model.active_view.invalidate
+        }
+        submenu.set_validation_proc(id) {
+          if axis == @axes.axis
+            MF_CHECKED
+          elsif can_bend_along?(axis)
+            MF_ENABLED
+          else
+            MF_DISABLED | MF_GRAYED
+          end
+        }
+      }
+    end
 
     # @param [Sketchup::Menu] menu
     def add_debug_menus(menu)
