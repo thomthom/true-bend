@@ -117,12 +117,13 @@ module TT::Plugins::TrueBend
 
       def test_grid_is_divided_like_the_reference_segment
         each_bender { |bender, setup, _corners, description|
+          bender.subdivisions = 5
           segment = setup.segment
           length = segment.start.distance(segment.end).to_f
           along = segment.start.vector_to(segment.end).normalize
           points = grid_of(bender).segment_points
           positions = points.map { |point| (segment.start.vector_to(point) % along).round(6) }
-          expected = Array.new(25) { |i| (length * i / 24.0).round(6) }
+          expected = Array.new(6) { |i| (length * i / 5.0).round(6) }
           assert_equal(expected, positions.uniq.sort, description)
         }
       end
@@ -138,6 +139,21 @@ module TT::Plugins::TrueBend
         # The grid is made of segments between each of its lines: 24 along by
         # the 4 lines across, and 3 across by the 25 lines along.
         assert_equal((24 * 4) + (3 * 25), grid_of(bender).segments.size)
+      end
+
+      def test_set_subdivisions_keeps_the_grid_in_sync
+        instance = create_solid(X)
+        setup = bend_setup(instance)
+        bender = Bender.new(instance, setup.segment, setup.normal)
+        grid = grid_of(bender)
+
+        bender.subdivisions = 8
+
+        assert_equal(8, bender.subdivisions)
+        assert_same(grid, grid_of(bender))
+        assert_equal(8, grid.x_subdivs)
+        # 8 along by the 4 lines across, and 3 across by the 9 lines along.
+        assert_equal((8 * 4) + (3 * 9), grid.segments.size)
       end
 
     end # class

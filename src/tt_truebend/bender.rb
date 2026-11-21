@@ -87,6 +87,7 @@ module TT::Plugins::TrueBend
     # @param [Integer] value
     def subdivisions=(value)
       @segmenter.subdivisions = value
+      @grid.x_subdivs = value
     end
 
     # @param [Geom::Vector3d] direction
