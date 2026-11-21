@@ -15,3 +15,6 @@ Backup of *.layout
 # YARD
 /.yardoc/
 /doc/
+
+# Bundler
+Gemfile.lock
