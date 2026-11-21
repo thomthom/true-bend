@@ -5,8 +5,8 @@
 #
 #-------------------------------------------------------------------------------
 
+require 'tt_truebend/bend_axes'
 require 'tt_truebend/bender'
-require 'tt_truebend/tools/truebend'
 
 module TT::Plugins::TrueBend
   module Tests
@@ -19,15 +19,13 @@ module TT::Plugins::TrueBend
       # which is too coarse to tell a correct bend from a nearly correct one.
       TOLERANCE = 1.0e-6
 
-      # The axes of an instance, as indices into a point. An instance is bent
-      # along its red axis.
-      X = 0
-      Y = 1
-      Z = 2
+      AXIS_NAMES = %w[red green blue].freeze
 
-      # How a bend is set up: the reference segment that the instance is bent
-      # along, and the direction it is bent in.
-      BendSetup = Struct.new(:segment, :normal)
+      FACE_NAMES = {
+        BendAxes::FRONT => 'front',
+        BendAxes::RIGHT => 'right',
+        BendAxes::TOP   => 'top',
+      }.freeze
 
       # The test solid is long in one direction, to bend along, and thin in the
       # other two. It is thinner than the radius of the bends made in the
@@ -163,38 +161,39 @@ module TT::Plugins::TrueBend
         group
       end
 
-      # The way the tool sets up the bend of an instance: along its red axis,
-      # through its origin, towards the front of its bounding box.
+      # A group with only an edge in it, running along the given axis.
       #
-      # @param [Sketchup::Group, Sketchup::ComponentInstance] instance
-      # @return [BendSetup]
-      def bend_setup(instance)
-        bender = TrueBendTool.new(instance).instance_variable_get(:@bender)
-        BendSetup.new(bender.segment, bender.instance_variable_get(:@normal))
+      # @param [Integer] axis
+      # @return [Sketchup::Group]
+      def create_line_instance(axis)
+        group = Sketchup.active_model.entities.add_group
+        group.entities.add_line(point_along(axis, 10.0, 0.0, 0.0),
+                                point_along(axis, 60.0, 0.0, 0.0))
+        group
       end
 
       # The drag of the bend handle the tests bend with.
       #
-      # @param [BendSetup] setup
-      # @param [Boolean] towards Whether to bend towards the front of the
-      #   instance, or away from it.
+      # @param [BendAxes] axes
+      # @param [Boolean] towards Whether to bend towards the face of the
+      #   instance that `axes` describe, or away from it.
       # @return [Geom::Vector3d]
-      def drag_vector(setup, towards)
-        segment = setup.segment
-        drag = towards ? setup.normal : setup.normal.reverse
+      def drag_vector(axes, towards)
+        segment = axes.segment
+        drag = towards ? axes.normal : axes.normal.reverse
         drag.length = segment.start.distance(segment.end).to_f * DRAG_RATIO
         drag
       end
 
       # @param [Sketchup::Group, Sketchup::ComponentInstance] instance
-      # @param [BendSetup] setup
+      # @param [BendAxes] axes
       # @param [Geom::Vector3d] drag
       # @param [Integer] subdivisions
       # @yieldparam [Bender] bender Yielded before the bend is committed, for
       #   setting it up further.
       # @return [Sketchup::Group, Sketchup::ComponentInstance]
-      def commit_bend(instance, setup, drag, subdivisions: SUBDIVISIONS)
-        bender = Bender.new(instance, setup.segment, setup.normal)
+      def commit_bend(instance, axes, drag, subdivisions: SUBDIVISIONS)
+        bender = Bender.new(instance, axes.segment, axes.normal)
         bender.subdivisions = subdivisions
         bender.bend(drag)
         yield bender if block_given?

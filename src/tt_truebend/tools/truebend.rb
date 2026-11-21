@@ -1,9 +1,9 @@
-require 'tt_truebend/constants/boundingbox'
 require 'tt_truebend/gl/boundingbox'
 require 'tt_truebend/helpers/instance'
 require 'tt_truebend/manipulators/drag_handle'
 require 'tt_truebend/observers/transaction'
 require 'tt_truebend/app_settings'
+require 'tt_truebend/bend_axes'
 require 'tt_truebend/bender'
 require 'tt_truebend/validator'
 require 'tt_truebend/vcb_parser'
@@ -11,7 +11,6 @@ require 'tt_truebend/vcb_parser'
 module TT::Plugins::TrueBend
   class TrueBendTool
 
-    include BoundingBoxConstants
     include InstanceHelper
 
     # Raised when the pre-conditions for the tool to operate isn't met.
@@ -22,25 +21,14 @@ module TT::Plugins::TrueBend
       @bend_by_distance = false
       @boundingbox = BoundingBoxWidget.new(instance)
 
-      # segment = @boundingbox.segments.first
-      segment = bend_segment(instance)
-      polygon = @boundingbox.polygon(BB_POLYGON_FRONT)
+      axes = BendAxes.along(instance, BendAxes::X).first
+      raise BendError, 'zero length distance to bend' unless axes.can_bend?
 
-      normal = polygon.normal
-      unless normal.valid?
-        # If the instance is flat, work out the direction based on the normal
-        # of the flat instance and the X axis.
-        x_axis = @boundingbox.segments.first.direction
-        z_axis = @boundingbox.polygon(BB_POLYGON_BOTTOM).normal
-        normal = x_axis * z_axis
-      end
-      raise BendError, 'zero length distance to bend' unless normal.valid?
-
-      @bender = Bender.new(instance, segment, normal)
+      @bender = Bender.new(instance, axes.segment, axes.normal)
       @bender.segmented = SETTINGS.bend_segmented?
       @bender.soft_smooth = SETTINGS.bend_soft_smooth?
 
-      @manipulator = DragHandle.new(polygon.center, normal, color: 'red')
+      @manipulator = DragHandle.new(axes.face_center, axes.normal, color: 'red')
 
       @cached_direction = nil
       @manipulator.on_drag { |direction|
@@ -282,20 +270,6 @@ module TT::Plugins::TrueBend
       menu.set_validation_proc(id) {
         SETTINGS.send(getter) ? MF_CHECKED : MF_ENABLED
       }
-    end
-
-    # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
-    # @return [Segment]
-    def bend_segment(instance)
-      definition = definition(instance)
-      bounds = definition.bounds
-
-      start_point = Geom::Point3d.new(bounds.min.x, 0, 0)
-      end_point = Geom::Point3d.new(bounds.max.x, 0, 0)
-
-      start_point.transform!(instance.transformation)
-      end_point.transform!(instance.transformation)
-      Segment.new(start_point, end_point)
     end
 
     def commit_bend

@@ -55,26 +55,33 @@ module TT::Plugins::TrueBend
       # where a true circular bend puts it.
       #
       # @param [Geom::Transformation] transformation
-      # @param [Boolean] towards Whether to bend towards or away from the front
-      #   of the instance.
-      def assert_true_bend(transformation, towards)
-        instance = create_solid(X, transformation)
-        setup = bend_setup(instance)
-        segment_points = setup.segment.points
-        drag = drag_vector(setup, towards)
-        original = sliced_solid_points(X).map { |point| point.transform(transformation) }
+      # @param [Integer] axis The axis of the instance to bend along.
+      # @param [Integer] face_index Which of the faces the instance can bend
+      #   towards along that axis.
+      # @param [Boolean] towards Whether to bend towards or away from that face.
+      def assert_true_bend(transformation, axis, face_index, towards)
+        instance = create_solid(axis, transformation)
+        axes = BendAxes.along(instance, axis)[face_index]
+        segment_points = axes.segment.points
+        drag = drag_vector(axes, towards)
+        original = sliced_solid_points(axis).map { |point| point.transform(transformation) }
         expected = true_bend(original, segment_points, drag)
 
-        bent = commit_bend(instance, setup, drag)
+        bent = commit_bend(instance, axes, drag)
 
         assert_same_points(expected, world_positions(bent))
       end
 
       PLACEMENTS.each { |placement, transformation|
-        [true, false].each { |towards|
-          name = "test_commit_#{placement}_#{towards ? 'towards' : 'away_from'}_the_front"
-          define_method(name) {
-            assert_true_bend(transformation, towards)
+        BendAxes::FACES.each_with_index { |faces, axis|
+          faces.each_with_index { |face, face_index|
+            [true, false].each { |towards|
+              name = "test_commit_#{placement}_along_#{AXIS_NAMES[axis]}_" \
+                     "#{towards ? 'towards' : 'away_from'}_#{FACE_NAMES[face]}"
+              define_method(name) {
+                assert_true_bend(transformation, axis, face_index, towards)
+              }
+            }
           }
         }
       }
@@ -83,11 +90,12 @@ module TT::Plugins::TrueBend
       # direction of the reference segment alone, which for an instance tilted
       # about its red axis was not the plane of the bend.
       def test_commit_instance_tilted_about_its_red_axis_bends_like_an_unrotated_one
+        tilt = Geom::Transformation.rotation(ORIGIN, X_AXIS, 90.degrees)
         [true, false].each { |towards|
-          results = [IDENTITY, QUARTER_TURN_ABOUT_RED].map { |transformation|
-            instance = create_solid(X, transformation)
-            setup = bend_setup(instance)
-            local_positions(commit_bend(instance, setup, drag_vector(setup, towards)))
+          results = [IDENTITY, tilt].map { |transformation|
+            instance = create_solid(BendAxes::X, transformation)
+            axes = BendAxes.along(instance, BendAxes::X).first
+            local_positions(commit_bend(instance, axes, drag_vector(axes, towards)))
           }
           unrotated, tilted = results
           assert_same_points(unrotated, tilted,
@@ -96,14 +104,15 @@ module TT::Plugins::TrueBend
       end
 
       def test_commit_true_curve_puts_every_vertex_on_the_arc
-        instance = create_solid(X)
-        add_edge_loop(instance, X, 0.4)
-        setup = bend_setup(instance)
-        drag = drag_vector(setup, true)
-        original = sliced_solid_points(X, 4) + solid_section(X, 0.4)
-        expected = true_bend(original, setup.segment.points, drag)
+        axis = BendAxes::X
+        instance = create_solid(axis)
+        add_edge_loop(instance, axis, 0.4)
+        axes = BendAxes.along(instance, axis).first
+        drag = drag_vector(axes, true)
+        original = sliced_solid_points(axis, 4) + solid_section(axis, 0.4)
+        expected = true_bend(original, axes.segment.points, drag)
 
-        bent = commit_bend(instance, setup, drag, subdivisions: 4) { |bender|
+        bent = commit_bend(instance, axes, drag, subdivisions: 4) { |bender|
           bender.segmented = false
         }
 
@@ -115,25 +124,26 @@ module TT::Plugins::TrueBend
       # of the bend, and ends up on the straight line between where the planes
       # on either side of it put the edge it is on.
       def test_commit_segmented_keeps_vertices_between_slices_on_straight_segments
-        instance = create_solid(X, tapered: false)
-        add_edge_loop(instance, X, 0.4, tapered: false)
-        setup = bend_setup(instance)
-        drag = drag_vector(setup, true)
-        segment_points = setup.segment.points
+        axis = BendAxes::X
+        instance = create_solid(axis, tapered: false)
+        add_edge_loop(instance, axis, 0.4, tapered: false)
+        axes = BendAxes.along(instance, axis).first
+        drag = drag_vector(axes, true)
+        segment_points = axes.segment.points
         # With four segments, 0.4 along the solid is 0.6 of the way from the
         # slice at 0.25 to the slice at 0.5.
         segment_angle = bend_angle(segment_points, drag) / 4
         before = Math.sin(segment_angle * 0.6)
         after = Math.sin(segment_angle * 0.4)
         ratio = before / (before + after)
-        slice1 = true_bend(solid_section(X, 0.25, tapered: false), segment_points, drag)
-        slice2 = true_bend(solid_section(X, 0.5, tapered: false), segment_points, drag)
+        slice1 = true_bend(solid_section(axis, 0.25, tapered: false), segment_points, drag)
+        slice2 = true_bend(solid_section(axis, 0.5, tapered: false), segment_points, drag)
         between = slice1.zip(slice2).map { |point1, point2|
           Geom.linear_combination(1.0 - ratio, point1, ratio, point2)
         }
-        slices = true_bend(sliced_solid_points(X, 4, tapered: false), segment_points, drag)
+        slices = true_bend(sliced_solid_points(axis, 4, tapered: false), segment_points, drag)
 
-        bent = commit_bend(instance, setup, drag, subdivisions: 4) { |bender|
+        bent = commit_bend(instance, axes, drag, subdivisions: 4) { |bender|
           bender.segmented = true
         }
 
@@ -141,12 +151,13 @@ module TT::Plugins::TrueBend
       end
 
       def test_commit_by_angle
-        instance = create_solid(X)
-        setup = bend_setup(instance)
-        drag = drag_vector(setup, true)
-        expected = true_bend(sliced_solid_points(X), setup.segment.points, drag, 60.degrees)
+        axis = BendAxes::X
+        instance = create_solid(axis)
+        axes = BendAxes.along(instance, axis).first
+        drag = drag_vector(axes, true)
+        expected = true_bend(sliced_solid_points(axis), axes.segment.points, drag, 60.degrees)
 
-        bent = commit_bend(instance, setup, drag) { |bender|
+        bent = commit_bend(instance, axes, drag) { |bender|
           bender.angle = 60.degrees
         }
 
@@ -154,16 +165,17 @@ module TT::Plugins::TrueBend
       end
 
       def test_commit_bends_nested_instances
+        axis = BendAxes::X
         placement = Geom::Transformation.translation(Geom::Vector3d.new(3, 4, 5)) *
                     Geom::Transformation.rotation(ORIGIN, X_AXIS, 90.degrees)
         parent = Sketchup.active_model.entities.add_group
-        create_solid(X, placement, entities: parent.entities)
-        setup = bend_setup(parent)
-        drag = drag_vector(setup, true)
-        original = sliced_solid_points(X).map { |point| point.transform(placement) }
-        expected = true_bend(original, setup.segment.points, drag)
+        create_solid(axis, placement, entities: parent.entities)
+        axes = BendAxes.along(parent, axis).first
+        drag = drag_vector(axes, true)
+        original = sliced_solid_points(axis).map { |point| point.transform(placement) }
+        expected = true_bend(original, axes.segment.points, drag)
 
-        bent = commit_bend(parent, setup, drag)
+        bent = commit_bend(parent, axes, drag)
 
         child = bent.definition.entities.grep(Sketchup::Group).first
         actual = local_positions(child).map { |point| point.transform(child.transformation) }
@@ -171,34 +183,35 @@ module TT::Plugins::TrueBend
       end
 
       def test_commit_bends_every_instance_of_a_component
-        instance = create_solid(X).to_component
+        axis = BendAxes::X
+        instance = create_solid(axis).to_component
         offset = Geom::Transformation.translation(Geom::Vector3d.new(0, 200, 0))
         other = Sketchup.active_model.entities.add_instance(instance.definition, offset)
-        setup = bend_setup(instance)
-        drag = drag_vector(setup, true)
-        expected = true_bend(sliced_solid_points(X), setup.segment.points, drag)
+        axes = BendAxes.along(instance, axis).first
+        drag = drag_vector(axes, true)
+        expected = true_bend(sliced_solid_points(axis), axes.segment.points, drag)
 
-        bent = commit_bend(instance, setup, drag)
+        bent = commit_bend(instance, axes, drag)
 
         assert_same_points(expected, world_positions(bent))
         assert_equal(bent.definition, other.definition)
       end
 
       def test_commit_leaves_nothing_else_in_the_model
-        instance = create_solid(X)
-        setup = bend_setup(instance)
+        instance = create_solid(BendAxes::X)
+        axes = BendAxes.along(instance, BendAxes::X).first
 
-        bent = commit_bend(instance, setup, drag_vector(setup, true))
+        bent = commit_bend(instance, axes, drag_vector(axes, true))
 
         assert_equal([bent], Sketchup.active_model.entities.to_a)
         assert_empty(bent.definition.entities.grep(Sketchup::Group))
       end
 
       def test_commit_softens_the_edges_from_slicing
-        instance = create_solid(X, tapered: false)
-        setup = bend_setup(instance)
+        instance = create_solid(BendAxes::X, tapered: false)
+        axes = BendAxes.along(instance, BendAxes::X).first
 
-        bent = commit_bend(instance, setup, drag_vector(setup, true)) { |bender|
+        bent = commit_bend(instance, axes, drag_vector(axes, true)) { |bender|
           bender.segmented = true
           bender.soft_smooth = true
         }
@@ -212,10 +225,10 @@ module TT::Plugins::TrueBend
       end
 
       def test_commit_segmented_without_soft_smooth_leaves_the_edges_from_slicing_hard
-        instance = create_solid(X, tapered: false)
-        setup = bend_setup(instance)
+        instance = create_solid(BendAxes::X, tapered: false)
+        axes = BendAxes.along(instance, BendAxes::X).first
 
-        bent = commit_bend(instance, setup, drag_vector(setup, true)) { |bender|
+        bent = commit_bend(instance, axes, drag_vector(axes, true)) { |bender|
           bender.segmented = true
           bender.soft_smooth = false
         }
@@ -226,21 +239,21 @@ module TT::Plugins::TrueBend
       end
 
       def test_commit_makes_a_group_unique
-        instance = create_solid(X)
+        instance = create_solid(BendAxes::X)
         copy = instance.copy
-        setup = bend_setup(instance)
+        axes = BendAxes.along(instance, BendAxes::X).first
 
-        bent = commit_bend(instance, setup, drag_vector(setup, true))
+        bent = commit_bend(instance, axes, drag_vector(axes, true))
 
         refute_equal(copy.definition, bent.definition)
-        assert_same_points(solid_corners(X), local_positions(copy))
+        assert_same_points(solid_corners(BendAxes::X), local_positions(copy))
       end
 
 
       # @return [Bender] For a segment 100" long, running along the red axis
       #   from the origin, bending towards the front.
       def create_bender
-        instance = create_solid(X)
+        instance = create_solid(BendAxes::X)
         segment = Segment.new(ORIGIN, Geom::Point3d.new(100, 0, 0))
         Bender.new(instance, segment, Y_AXIS.reverse)
       end

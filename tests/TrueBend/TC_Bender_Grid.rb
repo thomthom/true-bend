@@ -41,23 +41,23 @@ module TT::Plugins::TrueBend
         bender.instance_variable_get(:@grid)
       end
 
-      # Yields a `Bender` for the test solid in each of the test placements,
-      # set up to bend towards its front, as the tool does, and towards its top.
+      # Yields a `Bender` for every way of bending the test solid, for each of
+      # the test placements.
       #
       # @yieldparam [Bender] bender
-      # @yieldparam [BendSetup] setup
+      # @yieldparam [BendAxes] axes
       # @yieldparam [Array<Geom::Point3d>] corners The corners of the solid, in
       #   world coordinates.
       # @yieldparam [String] description
       def each_bender
         PLACEMENTS.each { |placement, transformation|
-          instance = create_solid(X, transformation)
-          corners = solid_corners(X).map { |point| point.transform(transformation) }
-          front = bend_setup(instance)
-          top = BendSetup.new(front.segment, transformation.zaxis)
-          { 'front' => front, 'top' => top }.each { |side, setup|
-            bender = Bender.new(instance, setup.segment, setup.normal)
-            yield bender, setup, corners, "#{placement}, towards the #{side}"
+          BendAxes::FACES.each_index { |axis|
+            instance = create_solid(axis, transformation)
+            corners = solid_corners(axis).map { |point| point.transform(transformation) }
+            BendAxes.along(instance, axis).each_with_index { |axes, index|
+              bender = Bender.new(instance, axes.segment, axes.normal)
+              yield bender, axes, corners, "#{placement}, along #{AXIS_NAMES[axis]}, face #{index}"
+            }
           }
         }
       end
@@ -66,11 +66,11 @@ module TT::Plugins::TrueBend
       # start of the reference segment.
       #
       # @param [Array<Geom::Point3d>] points
-      # @param [BendSetup] setup
+      # @param [BendAxes] axes
       # @param [Geom::Vector3d] direction Unit vector.
       # @return [Array(Float, Float)]
-      def extents(points, setup, direction)
-        start = setup.segment.start
+      def extents(points, axes, direction)
+        start = axes.segment.start
         points.map { |point| start.vector_to(point) % direction }.minmax
       end
 
@@ -84,31 +84,30 @@ module TT::Plugins::TrueBend
 
 
       def test_grid_spans_the_reference_segment
-        each_bender { |bender, setup, _corners, description|
-          segment = setup.segment
+        each_bender { |bender, axes, _corners, description|
+          segment = axes.segment
           length = segment.start.distance(segment.end).to_f
           along = segment.start.vector_to(segment.end).normalize
           points = grid_of(bender).segment_points
-          assert_extents([0.0, length], extents(points, setup, along), description)
+          assert_extents([0.0, length], extents(points, axes, along), description)
         }
       end
 
       def test_grid_spans_the_instance_in_the_direction_of_the_bend
-        each_bender { |bender, setup, corners, description|
+        each_bender { |bender, axes, corners, description|
           points = grid_of(bender).segment_points
-          normal = setup.normal.normalize
-          assert_extents(extents(corners, setup, normal),
-                         extents(points, setup, normal), description)
+          assert_extents(extents(corners, axes, axes.normal),
+                         extents(points, axes, axes.normal), description)
         }
       end
 
       def test_grid_lies_flat_on_a_side_of_the_instance
-        each_bender { |bender, setup, corners, description|
-          segment = setup.segment
-          bend_axis = (segment.start.vector_to(segment.end) * setup.normal).normalize
-          lower, upper = extents(grid_of(bender).segment_points, setup, bend_axis)
+        each_bender { |bender, axes, corners, description|
+          segment = axes.segment
+          bend_axis = (segment.start.vector_to(segment.end) * axes.normal).normalize
+          lower, upper = extents(grid_of(bender).segment_points, axes, bend_axis)
           assert_in_delta(lower, upper, TOLERANCE, "Flat, #{description}")
-          sides = extents(corners, setup, bend_axis)
+          sides = extents(corners, axes, bend_axis)
           on_a_side = sides.any? { |side| (side - lower).abs < TOLERANCE }
           assert(on_a_side, "Expected the grid at #{lower} to be on a side of the instance, " \
                             "which are at #{sides.inspect}. #{description}")
@@ -116,9 +115,9 @@ module TT::Plugins::TrueBend
       end
 
       def test_grid_is_divided_like_the_reference_segment
-        each_bender { |bender, setup, _corners, description|
+        each_bender { |bender, axes, _corners, description|
           bender.subdivisions = 5
-          segment = setup.segment
+          segment = axes.segment
           length = segment.start.distance(segment.end).to_f
           along = segment.start.vector_to(segment.end).normalize
           points = grid_of(bender).segment_points
@@ -129,10 +128,10 @@ module TT::Plugins::TrueBend
       end
 
       def test_grid_has_the_default_number_of_subdivisions
-        instance = create_solid(X)
-        setup = bend_setup(instance)
+        instance = create_solid(BendAxes::X)
+        axes = BendAxes.along(instance, BendAxes::X).first
 
-        bender = Bender.new(instance, setup.segment, setup.normal)
+        bender = Bender.new(instance, axes.segment, axes.normal)
 
         assert_equal(24, bender.subdivisions)
         assert_equal(24, grid_of(bender).x_subdivs)
@@ -142,9 +141,9 @@ module TT::Plugins::TrueBend
       end
 
       def test_set_subdivisions_keeps_the_grid_in_sync
-        instance = create_solid(X)
-        setup = bend_setup(instance)
-        bender = Bender.new(instance, setup.segment, setup.normal)
+        instance = create_solid(BendAxes::X)
+        axes = BendAxes.along(instance, BendAxes::X).first
+        bender = Bender.new(instance, axes.segment, axes.normal)
         grid = grid_of(bender)
 
         bender.subdivisions = 8
@@ -152,7 +151,8 @@ module TT::Plugins::TrueBend
         assert_equal(8, bender.subdivisions)
         assert_same(grid, grid_of(bender))
         assert_equal(8, grid.x_subdivs)
-        # 8 along by the 4 lines across, and 3 across by the 9 lines along.
+        # The grid is made of segments between each of its lines: 8 along by
+        # the 4 lines across, and 3 across by the 9 lines along.
         assert_equal((8 * 4) + (3 * 9), grid.segments.size)
       end
 

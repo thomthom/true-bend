@@ -17,6 +17,10 @@ module TT::Plugins::TrueBend
 
       include TrueBendTestUtilities
 
+      X = BendAxes::X
+      Y = BendAxes::Y
+      Z = BendAxes::Z
+
       ROTATION = Geom::Transformation.rotation(ORIGIN, Geom::Vector3d.new(1, 2, 3), 37.degrees)
       TRANSLATION = Geom::Transformation.translation(Geom::Vector3d.new(30, -40, 50))
 

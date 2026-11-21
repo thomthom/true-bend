@@ -17,6 +17,10 @@ module TT::Plugins::TrueBend
 
       include TrueBendTestUtilities
 
+      X = BendAxes::X
+      Y = BendAxes::Y
+      Z = BendAxes::Z
+
       SELECT_ONE_INSTANCE = 'Select a single Group or Component to bend.'.freeze
       UNABLE_TO_BEND = 'Unable to bend because the distance along the x-axis is zero.'.freeze
 
