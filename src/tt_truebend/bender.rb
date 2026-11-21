@@ -245,10 +245,7 @@ module TT::Plugins::TrueBend
       # return unless @direction.valid?
       return unless bending?
 
-      # Set up the projection.
-      x_axis = origin.vector_to(polar_points.last)
-      projection = PolarProjection.new(radius)
-      projection.axes(origin, x_axis)
+      projection = polar_projection
 
       # Projected grid
       draw_projected_grid(view, @instance, projection, @segmenter, convex?)
@@ -320,9 +317,7 @@ module TT::Plugins::TrueBend
       }
 
       # Create a new set of points representing the polar projection.
-      projection = PolarProjection.new(radius)
-      projection.axes(origin, polar_x_axis)
-      projected_points = projection.project(mesh_points, convex?, segment_angle)
+      projected_points = polar_projection.project(mesh_points, convex?, segment_angle)
 
       # Transform each vertex to their new position.
       to_local = transformation.inverse
@@ -355,14 +350,32 @@ module TT::Plugins::TrueBend
       }
     end
 
+    # The axes of the coordinate system the bend is computed in.
+    #
+    # X runs along the reference segment, Y points away from the concave side
+    # of the bend and Z is the axis the geometry is bent around.
+    #
+    # @return [Array(Geom::Vector3d, Geom::Vector3d, Geom::Vector3d)]
+    def segment_axes
+      x_axis = @segment.direction.normalize
+      z_axis = (x_axis * @normal.reverse).normalize
+      y_axis = z_axis * x_axis
+      [x_axis, y_axis, z_axis]
+    end
+
     # Creates a transformation that convert world coordinates to a local
     # coordinate for the reference segment.
     #
     # @return [Geom::Transformation]
     def world_to_segment_space
-      # TODO: Will the direction of the segment matter? Does it need to be
-      #       sorted somehow?
-      @segment.transformation.inverse
+      Geom::Transformation.axes(@segment.start, *segment_axes).inverse
+    end
+
+    # @return [PolarProjection]
+    def polar_projection
+      projection = PolarProjection.new(radius)
+      projection.axes(origin, polar_x_axis, segment_axes.z)
+      projection
     end
 
     # Return the full orientation of the two lines. Going counter-clockwise.

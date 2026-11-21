@@ -79,14 +79,5 @@ module TT::Plugins::TrueBend
       self
     end
 
-    # @return [Geom::Transformation]
-    def transformation
-      origin = @points.first
-      x_axis = direction
-      y_axis = x_axis.axes.x
-      z_axis = x_axis.axes.y
-      Geom::Transformation.axes(origin, x_axis, y_axis, z_axis)
-    end
-
   end # class
 end # module

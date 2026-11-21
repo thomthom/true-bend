@@ -134,22 +134,21 @@ module TT::Plugins::TrueBend
       def test_axes_places_the_circle
         origin = Geom::Point3d.new(100, 200, 300)
         projection = PolarProjection.new(RADIUS)
-        projection.axes(origin, Y_AXIS)
+        projection.axes(origin, Y_AXIS, X_AXIS)
         points = [Geom::Point3d.new(0, 0, 0), Geom::Point3d.new(QUARTER, 0, 4)]
 
         result = projection.project(points, true)
 
-        # Angles start at the green axis. The axis they revolve around follows
-        # from that direction alone, and for green it is blue. So a quarter of
-        # a circle on from green is the reverse of red.
+        # Angles start at the green axis and revolve around the red axis, so a
+        # quarter of a circle on from green is blue.
         assert_point(Geom::Point3d.new(100, 200 + RADIUS, 300), result[0])
-        assert_point(Geom::Point3d.new(100 - RADIUS, 200, 304), result[1])
+        assert_point(Geom::Point3d.new(104, 200, 300 + RADIUS), result[1])
       end
 
       def test_project_does_not_modify_the_points
         point = Geom::Point3d.new(QUARTER, 2, 3)
         projection = PolarProjection.new(RADIUS)
-        projection.axes(Geom::Point3d.new(1, 2, 3), X_AXIS)
+        projection.axes(Geom::Point3d.new(1, 2, 3), X_AXIS, Z_AXIS)
 
         projection.project([point], true, 45.degrees)
 

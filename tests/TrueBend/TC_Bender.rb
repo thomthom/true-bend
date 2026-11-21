@@ -14,21 +14,32 @@ module TT::Plugins::TrueBend
 
       include TrueBendTestUtilities
 
+      ARBITRARY_AXIS = Geom::Vector3d.new(1, 2, 3)
+      ARBITRARY_ROTATION = Geom::Transformation.rotation(ORIGIN, ARBITRARY_AXIS, 37.degrees)
       TRANSLATION = Geom::Transformation.translation(Geom::Vector3d.new(30, -40, 50))
+      QUARTER_TURN_ABOUT_RED = Geom::Transformation.rotation(ORIGIN, X_AXIS, 90.degrees)
+      QUARTER_TURN_ABOUT_GREEN = Geom::Transformation.rotation(ORIGIN, Y_AXIS, 90.degrees)
       QUARTER_TURN_ABOUT_BLUE = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees)
       ROTATION_ABOUT_BLUE = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 37.degrees)
       SCALING = Geom::Transformation.scaling(2, 0.5, 1.5)
+      SCALED_AND_MIRRORED = Geom::Transformation.scaling(-2, 0.5, 1.5)
+      ROTATED_SCALED_AND_MIRRORED = TRANSLATION * ARBITRARY_ROTATION * SCALED_AND_MIRRORED
 
       # The ways the instances being bent are placed in the model. None of them
       # shear the instance: scaling is applied before rotating.
       PLACEMENTS = {
         'unrotated'                           => IDENTITY,
         'moved'                               => TRANSLATION,
+        'rotated_about_red'                   => QUARTER_TURN_ABOUT_RED,
+        'rotated_about_green'                 => QUARTER_TURN_ABOUT_GREEN,
         'rotated_about_blue'                  => QUARTER_TURN_ABOUT_BLUE,
+        'rotated_about_arbitrary_axis'        => TRANSLATION * ARBITRARY_ROTATION,
         'scaled_non_uniformly'                => SCALING,
         'mirrored_along_red'                  => Geom::Transformation.scaling(-1, 1, 1),
         'mirrored_along_green'                => Geom::Transformation.scaling(1, -1, 1),
+        'mirrored_along_blue'                 => Geom::Transformation.scaling(1, 1, -1),
         'moved_rotated_about_blue_and_scaled' => TRANSLATION * ROTATION_ABOUT_BLUE * SCALING,
+        'rotated_scaled_and_mirrored'         => ROTATED_SCALED_AND_MIRRORED,
       }.freeze
 
       def setup
@@ -67,6 +78,22 @@ module TT::Plugins::TrueBend
           }
         }
       }
+
+      # Regression test: the bend used to be made in a plane found from the
+      # direction of the reference segment alone, which for an instance tilted
+      # about its red axis was not the plane of the bend.
+      def test_commit_instance_tilted_about_its_red_axis_bends_like_an_unrotated_one
+        [true, false].each { |towards|
+          results = [IDENTITY, QUARTER_TURN_ABOUT_RED].map { |transformation|
+            instance = create_solid(X, transformation)
+            setup = bend_setup(instance)
+            local_positions(commit_bend(instance, setup, drag_vector(setup, towards)))
+          }
+          unrotated, tilted = results
+          assert_same_points(unrotated, tilted,
+                             "Bending #{towards ? 'towards' : 'away from'} the front")
+        }
+      end
 
       def test_commit_true_curve_puts_every_vertex_on_the_arc
         instance = create_solid(X)

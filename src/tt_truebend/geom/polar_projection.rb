@@ -16,13 +16,15 @@ module TT::Plugins::TrueBend
       @transformation = nil
     end
 
-    # Sets the target transformation based on origin and x-axis.
+    # Sets the target transformation based on the origin of the polar
+    # coordinates, the direction of angle zero and the axis the angles revolve
+    # around.
     #
     # @param [Geom::Point3d] origin
     # @param [Geom::Vector3d] x_axis
-    def axes(origin, x_axis)
-      y_axis = x_axis.axes.x
-      z_axis = x_axis.axes.y
+    # @param [Geom::Vector3d] z_axis Must be perpendicular to `x_axis`.
+    def axes(origin, x_axis, z_axis)
+      y_axis = z_axis * x_axis
       @transformation = Geom::Transformation.axes(origin, x_axis, y_axis, z_axis)
       nil
     end

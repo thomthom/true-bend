@@ -158,49 +158,6 @@ module TT::Plugins::TrueBend
         assert_point(Geom::Point3d.new(41, 62, 33), segment.end)
       end
 
-      # The transformation is the coordinate system a bend along the segment is
-      # worked out in: X along the segment, bending in its XY plane.
-      def test_transformation_starts_at_the_segment_and_runs_along_it
-        segment = create_segment
-
-        result = segment.transformation
-
-        assert_point(Geom::Point3d.new(10, 20, 30), result.origin)
-        assert_vector(Geom::Vector3d.new(0.6, 0.8, 0), result.xaxis)
-      end
-
-      def test_transformation_of_a_level_segment_keeps_blue_up
-        segment = create_segment
-
-        result = segment.transformation
-
-        assert_vector(Geom::Vector3d.new(-0.8, 0.6, 0), result.yaxis)
-        assert_vector(Z_AXIS, result.zaxis)
-      end
-
-      # The other two axes follow from the direction of the segment alone. The
-      # second one is always level.
-      def test_transformation_of_a_sloping_segment_keeps_the_second_axis_level
-        segment = Segment.new(ORIGIN, Geom::Point3d.new(10, 0, 10))
-        diagonal = Math.sqrt(0.5)
-
-        result = segment.transformation
-
-        assert_vector(Geom::Vector3d.new(diagonal, 0, diagonal), result.xaxis)
-        assert_vector(Y_AXIS, result.yaxis)
-        assert_vector(Geom::Vector3d.new(-diagonal, 0, diagonal), result.zaxis)
-      end
-
-      def test_transformation_of_a_segment_along_blue
-        segment = Segment.new(ORIGIN, Geom::Point3d.new(0, 0, 10))
-
-        result = segment.transformation
-
-        assert_vector(Z_AXIS, result.xaxis)
-        assert_vector(X_AXIS, result.yaxis)
-        assert_vector(Y_AXIS, result.zaxis)
-      end
-
     end # class
   end # module
 end # module
