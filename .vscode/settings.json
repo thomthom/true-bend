@@ -1,6 +1,15 @@
 {
   "solargraph.diagnostics": true,
   "solargraph.useBundler": true,
+
+  // Ruby LSP is here for its debugger (see tools/README.md). `none` makes its
+  // language server use whatever `ruby` is on PATH instead of looking for a
+  // version manager it knows. To point it at a specific Ruby (3.2 or newer),
+  // set `rubyLsp.rubyExecutablePath` in your *user* settings. This only affects
+  // language features; debugging attaches over TCP regardless.
+  "rubyLsp.rubyVersionManager": {
+    "identifier": "none"
+  },
   "cSpell.words": [
     "Rakefile",
     "RuboCop",

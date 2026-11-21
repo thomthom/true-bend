@@ -4,13 +4,17 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Launch SketchUp in Ruby Debug mode",
-      "type": "shell",
-      "command": "skippy",
+      // Starts SketchUp with tools/su_debug_bootstrap.rb passed via
+      // -RubyStartup, which opens the debug server on port 7150. Then attach
+      // with the "Attach to SketchUp" launch configuration. See DEBUGGING.md.
+      // Keep this port in sync with .vscode/launch.json.
+      "label": "Launch SketchUp for debugging",
+      "type": "process",
+      "command": "ruby",
       "args": [
-        "sketchup:debug",
+        "tools/debug-sketchup.rb",
         "${input:sketchupVersion}",
-        "--port=6123"
+        "7150"
       ],
       "runOptions": {
         "reevaluateOnRerun": false
@@ -27,14 +31,7 @@
         "2027",
         "2026",
         "2025",
-        "2024",
-        "2023",
-        "2022",
-        "2021",
-        "2020",
-        "2019",
-        "2018",
-        "2017"
+        "2024"
       ],
       "default": "2027"
     }

@@ -10,6 +10,7 @@ AllCops:
   ExtraDetails: true
   Exclude:
   - src/*/vendor/**/*
+  - tools/**/* # Copied unchanged from the SketchUp VSCode example project.
   NewCops: enable
   # rubocop-minitest and rubocop-rake are installed for IDE insight only.
   SuggestExtensions: false
