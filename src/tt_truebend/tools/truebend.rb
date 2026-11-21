@@ -2,6 +2,7 @@ require 'tt_truebend/gl/boundingbox'
 require 'tt_truebend/helpers/instance'
 require 'tt_truebend/manipulators/drag_handle'
 require 'tt_truebend/observers/transaction'
+require 'tt_truebend/tools/truebend_menu'
 require 'tt_truebend/app_settings'
 require 'tt_truebend/bend_axes'
 require 'tt_truebend/bender'
@@ -12,6 +13,7 @@ module TT::Plugins::TrueBend
   class TrueBendTool
 
     include InstanceHelper
+    include TrueBendMenu
 
     # Raised when the pre-conditions for the tool to operate isn't met.
     class BendError < RuntimeError; end
@@ -42,52 +44,6 @@ module TT::Plugins::TrueBend
 
       @observer = TransactionObserver.new(&method(:on_transaction))
     end
-
-    # rubocop:disable Metrics/MethodLength
-    # @param [Sketchup::Menu] menu
-    def getMenu(menu)
-      id = menu.add_item('Commit') {
-        commit_bend
-      }
-      menu.set_validation_proc(id) {
-        @bender.can_bend? ? MF_ENABLED : MF_DISABLED | MF_GRAYED
-      }
-
-      id = menu.add_item('Cancel') {
-        reset_bend(Sketchup.active_model.active_view)
-      }
-      menu.set_validation_proc(id) {
-        @bender.can_bend? ? MF_ENABLED : MF_DISABLED | MF_GRAYED
-      }
-
-      menu.add_separator
-
-      id = menu.add_item('Segmented') {
-        @bender.segmented = !@bender.segmented
-        SETTINGS.bend_segmented = @bender.segmented
-      }
-      menu.set_validation_proc(id) {
-        @bender.segmented ? MF_CHECKED : MF_ENABLED
-      }
-
-      id = menu.add_item('Soften/Smooth Segments') {
-        @bender.soft_smooth = !@bender.soft_smooth
-        SETTINGS.bend_soft_smooth = @bender.soft_smooth
-      }
-      menu.set_validation_proc(id) {
-        if @bender.segmented
-          @bender.soft_smooth ? MF_CHECKED : MF_ENABLED
-        else
-          MF_DISABLED | MF_GRAYED | MF_CHECKED
-        end
-      }
-
-      add_debug_menus(menu)
-      true # `nil` or `false` will cause native menu to display.
-    rescue Exception => exception
-      ERROR_REPORTER.handle(exception)
-    end
-    # rubocop:enable Metrics/MethodLength
 
     def enableVCB?
       true
@@ -252,33 +208,6 @@ module TT::Plugins::TrueBend
     end
 
     private
-
-    # @param [Sketchup::Menu] menu
-    def add_debug_menus(menu)
-      return unless SETTINGS.debug?
-
-      menu.add_separator
-      add_setting_toggle(menu, :debug_draw_boundingbox)
-      add_setting_toggle(menu, :debug_draw_debug_info)
-      add_setting_toggle(menu, :debug_draw_local_mesh)
-      add_setting_toggle(menu, :debug_draw_global_mesh)
-      add_setting_toggle(menu, :debug_draw_slice_planes)
-    end
-
-    # @param [Sketchup::Menu] menu
-    # @param [Symbol] setting
-    def add_setting_toggle(menu, setting)
-      setter = "#{setting}=".to_sym
-      getter = "#{setting}?".to_sym
-      title = setting.to_s.split('_').map(&:capitalize).join(' ')
-      id = menu.add_item(title) {
-        SETTINGS.send(setter, !SETTINGS.send(getter))
-        Sketchup.active_model.active_view.invalidate
-      }
-      menu.set_validation_proc(id) {
-        SETTINGS.send(getter) ? MF_CHECKED : MF_ENABLED
-      }
-    end
 
     # @param [Integer] axis `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`
     def can_bend_along?(axis)
