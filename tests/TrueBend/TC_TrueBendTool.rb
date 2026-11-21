@@ -68,6 +68,44 @@ module TT::Plugins::TrueBend
         }
       end
 
+      # Double clicks the left mouse button in the viewport. SketchUp gives
+      # the tool the first click, and then the double click in place of the
+      # mouse button going down the second time.
+      #
+      # @param [TrueBendTool] tool
+      # @param [Array(Numeric, Numeric)] position In device pixels.
+      def double_click(tool, position)
+        view = Sketchup.active_model.active_view
+        click(tool, position)
+        without_user_feedback {
+          tool.onLButtonDoubleClick(0, *position, view)
+          tool.onLButtonUp(0, *position, view)
+        }
+      end
+
+      # Bends a quarter of a circle, away from the face the bend is set up
+      # towards.
+      #
+      # @param [TrueBendTool] tool
+      def bend_quarter_circle_away(tool)
+        bender = bender_of(tool)
+        bender.distance = -bender.max_bend_distance / 4.0
+      end
+
+      # Asserts that the tool has the instance bent a quarter of a circle, away
+      # from the face the bend is set up towards.
+      #
+      # @param [TrueBendTool] tool
+      # @param [String] message
+      def assert_quarter_circle_away(tool, message = nil)
+        bender = bender_of(tool)
+        assert_in_delta(90.degrees, bender.angle, 1.0e-9, message)
+        assert(bender.convex?, message)
+        assert_vector(axes_of(tool).normal.reverse, bender.direction.normalize, message)
+        expected_distance = bender.max_bend_distance.to_f / 4.0
+        assert_in_delta(expected_distance, bender.direction.length.to_f, TOLERANCE, message)
+      end
+
       # @param [TrueBendTool] tool
       # @return [BendAxes] The way the tool is set up to bend the instance.
       def axes_of(tool)
@@ -96,9 +134,16 @@ module TT::Plugins::TrueBend
         bender = bender_of(tool)
         assert_point(expected.segment.start, bender.segment.start, message)
         assert_point(expected.segment.end, bender.segment.end, message)
+        # The bender doesn't tell which direction it is set up to bend in, but
+        # it bends that way when there is no bend. The bend there was is put
+        # back, as the tool keeps it from one axis to the next.
+        direction = bender.direction
+        angle = bender.angle
+        bender.reset
         bender.distance = 1
         assert_vector(expected.normal, bender.direction, message)
-        bender.reset
+        bender.bend(direction)
+        bender.angle = angle
       end
 
       # @param [TrueBendTool] tool
@@ -465,15 +510,43 @@ module TT::Plugins::TrueBend
         assert_bend(tool, instance, X, 0)
       end
 
-      def test_on_key_down_resets_the_bend
+      def test_on_key_down_keeps_the_bend
         instance = create_solid(X)
         tool = TrueBendTool.new(instance)
-        bender_of(tool).distance = 5
-        assert(bender_of(tool).bending?)
+        bend_quarter_circle_away(tool)
+
+        press(tool, VK_LEFT)
+        assert_bend(tool, instance, Y, 0)
+        assert_quarter_circle_away(tool, 'Another axis')
+
+        press(tool, VK_LEFT)
+        assert_bend(tool, instance, Y, 1)
+        assert_quarter_circle_away(tool, 'Other direction')
+      end
+
+      def test_on_key_down_without_a_bend_leaves_it_unbent
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
 
         press(tool, VK_LEFT)
 
         refute(bender_of(tool).bending?)
+        refute(bender_of(tool).can_bend?)
+      end
+
+      def test_on_key_down_keeps_an_angle_that_was_typed
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        without_user_feedback {
+          tool.onUserText('60', Sketchup.active_model.active_view)
+        }
+        assert_in_delta(60.degrees, bender_of(tool).angle, 1.0e-9)
+
+        press(tool, VK_UP)
+
+        assert_in_delta(60.degrees, bender_of(tool).angle, 1.0e-9)
+        assert(bender_of(tool).concave?)
       end
 
       def test_on_key_down_keeps_the_number_of_segments
@@ -538,15 +611,27 @@ module TT::Plugins::TrueBend
         assert_bend(tool, instance, X, 0)
       end
 
-      def test_click_axis_button_resets_the_bend
+      def test_click_axis_button_keeps_the_bend
         instance = create_solid(X)
         tool = TrueBendTool.new(instance)
-        bender_of(tool).distance = 5
-        assert(bender_of(tool).bending?)
+        bend_quarter_circle_away(tool)
 
         click(tool, button_position(tool, Y))
 
-        refute(bender_of(tool).bending?)
+        assert_bend(tool, instance, Y, 0)
+        assert_quarter_circle_away(tool)
+      end
+
+      def test_double_click_axis_button_is_two_clicks_and_doesnt_commit
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bend_quarter_circle_away(tool)
+
+        double_click(tool, button_position(tool, Y))
+
+        assert_bend(tool, instance, Y, 1)
+        assert_quarter_circle_away(tool)
+        assert_same_points(solid_corners(X), local_positions(instance))
       end
 
       def test_click_bounds_edge_selects_the_axis_it_runs_along
@@ -589,6 +674,31 @@ module TT::Plugins::TrueBend
         click(tool, edge_position(instance, X))
 
         assert_bend(tool, instance, X, 1)
+      end
+
+      def test_click_bounds_edge_keeps_the_bend
+        instance = create_solid(X)
+        look_at(instance)
+        tool = TrueBendTool.new(instance)
+        bend_quarter_circle_away(tool)
+
+        click(tool, edge_position(instance, Z))
+
+        assert_bend(tool, instance, Z, 0)
+        assert_quarter_circle_away(tool)
+      end
+
+      def test_double_click_bounds_edge_is_two_clicks_and_doesnt_commit
+        instance = create_solid(X)
+        look_at(instance)
+        tool = TrueBendTool.new(instance)
+        bend_quarter_circle_away(tool)
+
+        double_click(tool, edge_position(instance, Y))
+
+        assert_bend(tool, instance, Y, 1)
+        assert_quarter_circle_away(tool)
+        assert_same_points(solid_corners(X), local_positions(instance))
       end
 
       def test_click_bounds_edge_needs_the_mouse_released_on_the_edge
@@ -670,7 +780,7 @@ module TT::Plugins::TrueBend
         assert_equal(TrueBendTool::INACTIVE_HANDLE_COLOR, front.color)
       end
 
-      def test_drag_the_other_handle_starts_a_new_bend
+      def test_drag_the_other_handle_keeps_the_bend_and_adds_to_it
         instance = create_solid(X)
         tool = TrueBendTool.new(instance)
         bender_of(tool).distance = QUARTER_CIRCLE_DRAG
@@ -679,7 +789,7 @@ module TT::Plugins::TrueBend
 
         drag_handle(tool, QUARTER_CIRCLE_DRAG / 2.0, top)
 
-        assert_in_delta(45.degrees, bender_of(tool).angle, drag_tolerance(tool))
+        assert_in_delta(135.degrees, bender_of(tool).angle, drag_tolerance(tool))
         assert_vector(Z_AXIS, bender_of(tool).direction.normalize)
       end
 

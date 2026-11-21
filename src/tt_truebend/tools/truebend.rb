@@ -205,8 +205,17 @@ module TT::Plugins::TrueBend
       ERROR_REPORTER.handle(exception)
     end
 
-    def onLButtonDoubleClick(_flags, _x, _y, _view)
-      commit_bend
+    # @param [Integer] _flags
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
+    def onLButtonDoubleClick(_flags, x, y, view)
+      x, y = DPI.logical_pixels(x, y)
+      view = HighDpiView.new(view)
+      # On a button or an edge the second click of a double click is a click
+      # like the first, which the mouse button going up completes.
+      @pressed_axis = axis_at(x, y, view)
+      commit_bend if @pressed_axis.nil?
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
     end
@@ -341,7 +350,8 @@ module TT::Plugins::TrueBend
       @axis_buttons.draw(view)
     end
 
-    # Sets which axis of the instance to bend it along. This resets the bend.
+    # Sets which axis of the instance to bend it along. The angle of the bend
+    # is kept.
     #
     # @param [Integer] axis `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`
     def select_axis(axis)
@@ -352,22 +362,25 @@ module TT::Plugins::TrueBend
       select_bend(options.first)
     end
 
-    # Sets which of the directions on offer to bend the instance in. This resets
-    # the bend.
+    # Sets which of the directions on offer to bend the instance in. The angle
+    # of the bend is kept.
     #
     # @param [BendAxes] axes One of the keys in `@handles`.
     def select_bend(axes)
-      subdivisions = @bender ? @bender.subdivisions : nil
+      previous = @bender
       @bender = Bender.new(@instance, axes.segment, axes.normal)
       @bender.segmented = SETTINGS.bend_segmented?
       @bender.soft_smooth = SETTINGS.bend_soft_smooth?
-      @bender.subdivisions = subdivisions if subdivisions
       @cached_direction = nil
 
       @axes = axes
       @manipulator = @handles[axes]
       @handles.each_value { |handle| handle.color = INACTIVE_HANDLE_COLOR }
       @manipulator.color = ACTIVE_HANDLE_COLOR
+      return if previous.nil?
+
+      @bender.subdivisions = previous.subdivisions
+      @bender.bend_like(previous)
     end
 
     # @param [BendAxes] axes

@@ -343,6 +343,75 @@ module TT::Plugins::TrueBend
         assert_point(Geom::Point3d.new(50, 0, 0), bender.origin)
       end
 
+      # Sets up a bend of the test solid along one axis from a bend of it along
+      # another, and checks every vertex of the result against where a true
+      # circular bend of the same angle puts it.
+      #
+      # @param [Boolean] towards Whether the bends are towards or away from
+      #   the faces they are set up for.
+      def assert_true_bend_like(towards)
+        instance = create_solid(BendAxes::X)
+        first_axes = BendAxes.along(instance, BendAxes::Y).first
+        first = Bender.new(instance, first_axes.segment, first_axes.normal)
+        first.bend(drag_vector(first_axes, towards))
+        axes = BendAxes.along(instance, BendAxes::X).first
+        drag = towards ? axes.normal : axes.normal.reverse
+        expected = true_bend(sliced_solid_points(BendAxes::X), axes.segment.points, drag,
+                             first.angle)
+
+        # The drag given here is replaced by the bend that is copied.
+        bent = commit_bend(instance, axes, drag) { |bender|
+          bender.bend_like(first)
+        }
+
+        assert_same_points(expected, world_positions(bent))
+      end
+
+      def test_bend_like_bends_by_the_same_angle_towards_the_normal
+        assert_true_bend_like(true)
+      end
+
+      def test_bend_like_bends_by_the_same_angle_away_from_the_normal
+        assert_true_bend_like(false)
+      end
+
+      def test_bend_like_keeps_the_angle_for_a_segment_of_another_length
+        other = create_bender
+        other.bend(Geom::Vector3d.new(0, 100.0 / Math::PI / 4.0, 0))
+        instance = create_solid(BendAxes::X)
+        segment = Segment.new(ORIGIN, Geom::Point3d.new(0, 0, 40))
+        bender = Bender.new(instance, segment, X_AXIS)
+
+        bender.bend_like(other)
+
+        assert_in_delta(90.degrees, bender.angle, 1.0e-9)
+        assert_vector(Geom::Vector3d.new(-40.0 / Math::PI / 4.0, 0, 0), bender.direction)
+        assert(bender.convex?)
+      end
+
+      def test_bend_like_keeps_an_angle_that_was_set
+        other = create_bender
+        other.distance = 5
+        other.angle = 60.degrees
+        bender = create_bender
+
+        bender.bend_like(other)
+
+        assert_in_delta(60.degrees, bender.angle, 1.0e-9)
+        assert_in_delta(100.0 / Math::PI / 6.0, bender.distance.to_f, TOLERANCE)
+        assert(bender.concave?)
+      end
+
+      def test_bend_like_without_a_bend_resets
+        bender = create_bender
+        bender.bend(Geom::Vector3d.new(0, -5, 0))
+
+        bender.bend_like(create_bender)
+
+        refute(bender.bending?)
+        refute(bender.can_bend?)
+      end
+
       def test_set_distance_bends_towards_the_normal_when_there_is_no_bend
         bender = create_bender
 

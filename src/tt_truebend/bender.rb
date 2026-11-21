@@ -106,6 +106,20 @@ module TT::Plugins::TrueBend
       nil
     end
 
+    # Bends by the same angle as the given bender, and like it towards or away
+    # from the direction the bend is set up for.
+    #
+    # @param [Bender] other
+    # @return [nil]
+    def bend_like(other)
+      return reset unless other.bending? && other.can_bend?
+
+      @direction = other.concave? ? @normal.clone : @normal.reverse
+      @direction.length = max_bend_distance * (other.angle.abs / TAU)
+      @angle = other.angle
+      nil
+    end
+
     # @return [Sketchup::ComponentInstance, Sketchup::Group]
     def commit
       instance = ensure_groups_are_uniqe(@instance)
