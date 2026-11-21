@@ -33,6 +33,21 @@ module TT::Plugins::TrueBend
       nil
     end
 
+    # Sets the drawing colour to the one SketchUp draws the given axis in. The
+    # user can change these colours in the preferences.
+    #
+    # @param [Sketchup::View] view
+    # @param [Integer] axis 0, 1 or 2 for the red, green or blue axis.
+    # @return [nil]
+    def set_axis_color(view, axis)
+      # SketchUp picks the colour from how a line runs relative to the drawing
+      # axes of the model, which the user can move.
+      model = view.model
+      axes = model.respond_to?(:axes) ? model.axes.axes : [X_AXIS, Y_AXIS, Z_AXIS]
+      view.set_color_from_line(ORIGIN, ORIGIN.offset(axes[axis]))
+      nil
+    end
+
     # @param [Sketchup::View] view
     # @param [Array<Geom::Point3d>] points
     # @param [Integer] pixels

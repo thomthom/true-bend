@@ -126,7 +126,7 @@ module TT::Plugins::TrueBend
       end
 
       # Looks at the instance from in front, to the right and above, so that
-      # the bend handle is seen from the side.
+      # no edges of its bounds are behind one another.
       #
       # @param [Sketchup::Group] instance
       def look_at(instance)
@@ -187,6 +187,35 @@ module TT::Plugins::TrueBend
           tool.onMouseMove(0, *finish, view)
           tool.onLButtonUp(0, *finish, view)
         }
+      end
+
+      # Clicks the left mouse button in the viewport.
+      #
+      # @param [TrueBendTool] tool
+      # @param [Array(Numeric, Numeric)] position In device pixels, as SketchUp
+      #   gives positions to a tool.
+      # @param [Array(Numeric, Numeric)] release_position Where the mouse
+      #   button is let go, when that is somewhere else.
+      def click(tool, position, release_position = position)
+        drag(tool, position, release_position)
+      end
+
+      # The edges of the bounds that are picked in the tests, as the corners
+      # they run between, for each axis. They are the ones around the left end
+      # of the top of the bounds, which keep clear of the bend handles.
+      BOUNDS_EDGES = [[4, 5], [4, 6], [0, 4]].freeze
+
+      # @param [Sketchup::Group] instance
+      # @param [Integer] axis The axis the edge runs along.
+      # @return [Array(Numeric, Numeric)] A point on an edge of the bounds of
+      #   the instance, in device pixels.
+      def edge_position(instance, axis)
+        bounds = instance.definition.bounds
+        corners = BOUNDS_EDGES[axis].map { |index|
+          bounds.corner(index).transform(instance.transformation)
+        }
+        point = Geom.linear_combination(0.75, corners[0], 0.25, corners[1])
+        screen_position(point)
       end
 
       # Drags a bend handle, from the middle of it.
@@ -451,6 +480,59 @@ module TT::Plugins::TrueBend
 
         press(tool, VK_LEFT)
         assert_equal(8, bender_of(tool).subdivisions, 'Other direction')
+      end
+
+
+      def test_click_bounds_edge_selects_the_axis_it_runs_along
+        instance = create_solid(X)
+        look_at(instance)
+        tool = TrueBendTool.new(instance)
+
+        click(tool, edge_position(instance, Y))
+        assert_bend(tool, instance, Y, 0, 'Edge along green')
+
+        click(tool, edge_position(instance, Z))
+        assert_bend(tool, instance, Z, 0, 'Edge along blue')
+
+        click(tool, edge_position(instance, X))
+        assert_bend(tool, instance, X, 0, 'Edge along red')
+
+        assert_equal(0, @beeps)
+      end
+
+      def test_click_bounds_edge_follows_the_axes_of_a_rotated_instance
+        # Turned a quarter around blue, the red axis of the instance runs
+        # along the green axis of the model.
+        rotation = Geom::Transformation.rotation(ORIGIN, Z_AXIS, 90.degrees)
+        instance = create_solid(X, rotation)
+        look_at(instance)
+        tool = TrueBendTool.new(instance)
+
+        click(tool, edge_position(instance, Y))
+        assert_bend(tool, instance, Y, 0, 'Edge along the green axis of the instance')
+
+        click(tool, edge_position(instance, X))
+        assert_bend(tool, instance, X, 0, 'Edge along the red axis of the instance')
+      end
+
+      def test_click_bounds_edge_again_switches_the_bend_direction
+        instance = create_solid(X)
+        look_at(instance)
+        tool = TrueBendTool.new(instance)
+
+        click(tool, edge_position(instance, X))
+
+        assert_bend(tool, instance, X, 1)
+      end
+
+      def test_click_bounds_edge_needs_the_mouse_released_on_the_edge
+        instance = create_solid(X)
+        look_at(instance)
+        tool = TrueBendTool.new(instance)
+
+        click(tool, edge_position(instance, Y), empty_position)
+
+        assert_bend(tool, instance, X, 0)
       end
 
 

@@ -30,6 +30,10 @@ module TT::Plugins::TrueBend
       VK_LEFT  => BendAxes::Y,
       VK_UP    => BendAxes::Z,
     }.freeze
+    AXIS_KEY_NAMES = ['Right Arrow', 'Left Arrow', 'Up Arrow'].freeze
+
+    # The edges of the bounds that stand for the axis under the cursor.
+    HOVER_EDGE_WIDTH = 4
 
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     def initialize(instance)
@@ -45,6 +49,10 @@ module TT::Plugins::TrueBend
       @manipulator = nil
       @bender = nil
       @cached_direction = nil
+      # The axis that a click where the cursor is would choose, and the one the
+      # mouse button went down on.
+      @hover_axis = nil
+      @pressed_axis = nil
       # Bend along the red axis unless the instance has no length along it.
       axes = [BendAxes::X, BendAxes::Y, BendAxes::Z]
       axis = axes.find { |candidate| can_bend_along?(candidate) }
@@ -112,15 +120,7 @@ module TT::Plugins::TrueBend
       axis = AXIS_KEYS[key]
       return false if axis.nil? || @manipulator.drag?
 
-      if axis == @axes.axis
-        # Pressing the key for the current axis again switches to the other
-        # direction the instance can be bent in along that axis.
-        select_bend((@handles.keys - [@axes]).first)
-      elsif can_bend_along?(axis)
-        select_axis(axis)
-      else
-        UI.beep
-      end
+      choose_axis(axis)
       update_ui
       view.invalidate
       true
@@ -180,6 +180,7 @@ module TT::Plugins::TrueBend
         handle.picked?
       }
       select_bend(@handles.key(picked)) if picked && picked != @manipulator
+      @pressed_axis = picked ? nil : axis_at(x, y, view)
       view.invalidate
       update_ui
     rescue Exception => exception
@@ -194,6 +195,10 @@ module TT::Plugins::TrueBend
       x, y = DPI.logical_pixels(x, y)
       view = HighDpiView.new(view)
       @handles.each_value { |handle| handle.onLButtonUp(flags, x, y, view) }
+      # A click is the mouse button going down and up on the same thing.
+      pressed_axis = @pressed_axis
+      @pressed_axis = nil
+      choose_axis(pressed_axis) if pressed_axis && pressed_axis == axis_at(x, y, view)
       update_ui
       view.invalidate
     rescue Exception => exception
@@ -214,7 +219,17 @@ module TT::Plugins::TrueBend
       x, y = DPI.logical_pixels(x, y)
       view = HighDpiView.new(view)
       @handles.each_value { |handle| handle.onMouseMove(flags, x, y, view) }
+      @hover_axis = @manipulator.picked? ? nil : axis_at(x, y, view)
+      view.tooltip = @hover_axis ? axis_hint(@hover_axis) : ''
       update_ui
+      view.invalidate
+    rescue Exception => exception
+      ERROR_REPORTER.handle(exception)
+    end
+
+    # @param [Sketchup::View] view
+    def onMouseLeave(view)
+      @hover_axis = nil
       view.invalidate
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
@@ -235,6 +250,7 @@ module TT::Plugins::TrueBend
       view = HighDpiView.new(view)
       @bender.draw(view)
       @boundingbox.draw(view) if SETTINGS.debug_draw_boundingbox?
+      @boundingbox.draw_axis(view, @hover_axis, HOVER_EDGE_WIDTH) if @hover_axis
       @handles.each_value { |handle| handle.draw(view) unless handle == @manipulator }
       @manipulator.draw(view)
     rescue Exception => exception
@@ -246,6 +262,49 @@ module TT::Plugins::TrueBend
     # @param [Integer] axis `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`
     def can_bend_along?(axis)
       BendAxes.along(@instance, axis).all?(&:can_bend?)
+    end
+
+    # Bends along the given axis. Choosing the axis already in use switches to
+    # the other direction the instance can be bent in along that axis.
+    #
+    # @param [Integer] axis `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`
+    def choose_axis(axis)
+      if axis == @axes.axis
+        select_bend((@handles.keys - [@axes]).first)
+      elsif can_bend_along?(axis)
+        select_axis(axis)
+      else
+        UI.beep
+      end
+    end
+
+    # The axis that a click at the given position in the viewport chooses. The
+    # edges of the bounds of the instance stand for the axis they run along.
+    #
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
+    # @return [Integer, nil] `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`
+    def axis_at(x, y, view)
+      # The handles go before the edges they are in front of.
+      return nil if @handles.each_value.any? { |handle| handle.at?(x, y, view) }
+
+      @boundingbox.pick_axis(x, y, view)
+    end
+
+    # What choosing the given axis does.
+    #
+    # @param [Integer] axis `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`
+    # @return [String]
+    def axis_hint(axis)
+      name = AXIS_NAMES[axis].downcase
+      if axis == @axes.axis
+        "Switch the bend direction (#{AXIS_KEY_NAMES[axis]})"
+      elsif can_bend_along?(axis)
+        "Bend along the #{name} (#{AXIS_KEY_NAMES[axis]})"
+      else
+        "No length to bend along the #{name}"
+      end
     end
 
     # Sets which axis of the instance to bend it along. This resets the bend.
@@ -318,7 +377,8 @@ module TT::Plugins::TrueBend
         Sketchup.status_text = 'Drag to adjust the amount of bend.'
       else
         Sketchup.status_text = 'Pick a handle to start bending the instance. ' \
-                               'Arrow keys = bend along the red, green or blue axis.'
+                               'Click an edge of the bounding box, or use the arrow ' \
+                               'keys, to bend along another axis.'
       end
       if bend_by_distance?
         Sketchup.vcb_label = 'Distance'

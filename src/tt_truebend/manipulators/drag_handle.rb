@@ -51,6 +51,15 @@ module TT::Plugins::TrueBend
       !@start_pick.nil?
     end
 
+    # Whether the handle is at the given position in the viewport.
+    #
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
+    def at?(x, y, view)
+      !!pick_segment(x, y, view)
+    end
+
     # @return [Length]
     def distance
       @direction.length
@@ -242,7 +251,7 @@ module TT::Plugins::TrueBend
     # @param [Sketchup::View] view
     def mouse_over?(view)
       x, y = *@mouse_position.to_a
-      !!pick_segment(x, y, view)
+      at?(x, y, view)
     end
 
   end # class

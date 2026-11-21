@@ -12,6 +12,10 @@ module TT::Plugins::TrueBend
     include InstanceHelper
     include ViewConstants
 
+    # How close to an edge of the bounds the cursor has to be to pick it, in
+    # pixels.
+    PICK_APERTURE = 10
+
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     # @param [Sketchup::Color] color
     # @param [Integer] line_width
@@ -96,6 +100,26 @@ module TT::Plugins::TrueBend
       }
     end
 
+    # The axis of the instance that the edge of the bounds under the cursor
+    # runs along.
+    #
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
+    # @return [Integer, nil] 0, 1 or 2 for the red, green or blue axis.
+    def pick_axis(x, y, view)
+      pick_helper = view.pick_helper
+      picked = axis_segments.select { |_axis, segment|
+        pick_helper.pick_segment(segment.points, x, y, PICK_APERTURE)
+      }
+      # Where edges meet or cross on screen the one nearest the cursor wins.
+      cursor = Geom::Point3d.new(x, y, 0)
+      nearest = picked.min_by { |_axis, segment|
+        screen_distance(view, segment, cursor)
+      }
+      nearest ? nearest.first : nil
+    end
+
     # @param [Sketchup::View] view
     def draw(view)
       points = lift!(view, segment_points, pixels: 0.2)
@@ -105,7 +129,60 @@ module TT::Plugins::TrueBend
       view.draw(GL_LINES, points)
     end
 
+    # Draws the edges of the bounds that run along the given axis of the
+    # instance, in the colour of that axis.
+    #
+    # @param [Sketchup::View] view
+    # @param [Integer] axis 0, 1 or 2 for the red, green or blue axis.
+    # @param [Integer] line_width
+    def draw_axis(view, axis, line_width)
+      segments = axis_segments.select { |segment_axis, _segment|
+        segment_axis == axis
+      }
+      points = segments.flat_map { |_axis, segment| segment.points }
+      return if points.empty?
+
+      view.line_stipple = STIPPLE_SOLID
+      view.line_width = line_width
+      set_axis_color(view, axis)
+      view.draw(GL_LINES, lift!(view, points, pixels: 0.2))
+    end
+
     private
+
+    # The edges of the bounds, in world coordinates, each with the axis of the
+    # instance it runs along. Edges without length are left out.
+    #
+    # @return [Array<Array(Integer, Segment)>]
+    def axis_segments
+      segments = local_bounds.segments.map { |segment|
+        direction = segment.direction
+        next unless direction.valid?
+
+        lengths = direction.to_a.map(&:abs)
+        axis = lengths.index(lengths.max)
+        [axis, segment.transform!(@instance.transformation)]
+      }
+      segments.compact
+    end
+
+    # How far the cursor is from the line the segment makes on screen.
+    #
+    # @param [Sketchup::View] view
+    # @param [Segment] segment
+    # @param [Geom::Point3d] cursor
+    # @return [Length]
+    def screen_distance(view, segment, cursor)
+      point1, point2 = segment.points.map { |point|
+        screen_point = view.screen_coords(point)
+        screen_point.z = 0
+        screen_point
+      }
+      # A segment seen end on is only a point on screen.
+      return cursor.distance(point1) if point1 == point2
+
+      cursor.distance_to_line([point1, point2])
+    end
 
     # @return [Geom::BoundingBox]
     def local_bounds
