@@ -266,6 +266,9 @@ module TT::Plugins::TrueBend
       @handles.each_value { |handle| handle.draw(view) unless handle == @manipulator }
       @manipulator.draw(view)
       draw_axis_buttons(view)
+      # The bender puts the measures of the bend in the tooltip. What a click
+      # where the cursor is would do goes before that.
+      view.tooltip = axis_hint(@hover_axis) if @hover_axis
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
     end

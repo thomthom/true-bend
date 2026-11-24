@@ -28,6 +28,44 @@ module TT::Plugins::TrueBend
       # a quarter of a circle.
       QUARTER_CIRCLE_DRAG = 100.0 / Math::PI / 4.0
 
+      # Stands in for the view when the tool is asked to draw outside of a
+      # redraw. It measures like the view it wraps, draws nothing, and keeps
+      # the tooltip it is given.
+      class ViewSpy
+
+        DRAWING = %i[
+          draw draw2d draw_points draw_text draw_line draw_lines draw_polyline
+          drawing_color= line_width= line_stipple= set_color_from_line
+        ].freeze
+
+        attr_accessor :tooltip
+
+        def initialize(view)
+          @view = view
+          @tooltip = ''
+        end
+
+        # The tool only takes a view.
+        def is_a?(klass)
+          klass == Sketchup::View || super
+        end
+
+        DRAWING.each { |name|
+          define_method(name) { |*_arguments| nil }
+        }
+
+        def method_missing(name, *arguments, &block)
+          return super unless @view.respond_to?(name)
+
+          @view.public_send(name, *arguments, &block)
+        end
+
+        def respond_to_missing?(name, include_private = false)
+          @view.respond_to?(name, include_private) || super
+        end
+
+      end
+
       def setup
         start_with_empty_model
         @beeps = 0
@@ -791,6 +829,39 @@ module TT::Plugins::TrueBend
 
         assert(bender_of(tool).bending?)
         assert_bend(tool, instance, X, 0)
+      end
+
+
+      # @param [TrueBendTool] tool
+      # @return [String] The tooltip the tool leaves on the view when it draws.
+      def tooltip_after_draw(tool)
+        view = ViewSpy.new(Sketchup.active_model.active_view)
+        without_user_feedback { tool.draw(view) }
+        view.tooltip
+      end
+
+      def test_draw_shows_the_measures_of_the_bend_in_the_tooltip
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 5
+
+        tooltip = tooltip_after_draw(tool)
+
+        assert_match(/\AAngle: .+\nRadius: .+\nBend: .+\z/, tooltip)
+      end
+
+      def test_draw_shows_what_a_click_would_do_in_the_tooltip_while_bent
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 5
+        view = Sketchup.active_model.active_view
+        without_user_feedback {
+          tool.onMouseMove(0, *button_position(tool, Y), view)
+        }
+
+        tooltip = tooltip_after_draw(tool)
+
+        assert_equal('Bend along the green axis (Left Arrow)', tooltip)
       end
 
 
