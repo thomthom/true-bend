@@ -54,10 +54,10 @@ module TT::Plugins::TrueBend
       @manipulator = nil
       @bender = nil
       @cached_direction = nil
-      # The axis that a click where the cursor is would choose, and the one the
-      # mouse button went down on.
+      # The axis that a click where the cursor is would choose, and the control
+      # the mouse button went down on.
       @hover_axis = nil
-      @pressed_axis = nil
+      @pressed_control = nil
       # Bend along the red axis unless the instance has no length along it.
       axes = [BendAxes::X, BendAxes::Y, BendAxes::Z]
       axis = axes.find { |candidate| can_bend_along?(candidate) }
@@ -180,9 +180,10 @@ module TT::Plugins::TrueBend
       x, y = DPI.logical_pixels(x, y)
       view = HighDpiView.new(view)
       # The buttons are in front of everything else.
-      @pressed_axis = @axis_buttons.pick(x, y)
-      unless @pressed_axis || press_handle(flags, x, y, view)
-        @pressed_axis = axis_at(x, y, view)
+      button = @axis_buttons.pick(x, y)
+      @pressed_control = button ? [:button, button] : nil
+      unless button || press_handle(flags, x, y, view)
+        @pressed_control = control_at(x, y, view)
       end
       view.invalidate
       update_ui
@@ -198,10 +199,10 @@ module TT::Plugins::TrueBend
       x, y = DPI.logical_pixels(x, y)
       view = HighDpiView.new(view)
       @handles.each_value { |handle| handle.onLButtonUp(flags, x, y, view) }
-      # A click is the mouse button going down and up on the same thing.
-      pressed_axis = @pressed_axis
-      @pressed_axis = nil
-      choose_axis(pressed_axis) if pressed_axis && pressed_axis == axis_at(x, y, view)
+      # A click is the mouse button going down and up on the same control.
+      pressed = @pressed_control
+      @pressed_control = nil
+      choose_axis(pressed.last) if pressed && pressed == control_at(x, y, view)
       update_ui
       view.invalidate
     rescue Exception => exception
@@ -217,8 +218,8 @@ module TT::Plugins::TrueBend
       view = HighDpiView.new(view)
       # On a button or an edge the second click of a double click is a click
       # like the first, which the mouse button going up completes.
-      @pressed_axis = axis_at(x, y, view)
-      commit_bend if @pressed_axis.nil?
+      @pressed_control = control_at(x, y, view)
+      commit_bend if @pressed_control.nil?
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
     end
@@ -312,21 +313,34 @@ module TT::Plugins::TrueBend
       end
     end
 
-    # The axis that a click at the given position in the viewport chooses.
+    # The control for choosing an axis at the given position in the viewport.
     # There is a button for each axis, and the edges of the bounds of the
-    # instance stand for the axis they run along.
+    # instance stand together for the axis they run along.
+    #
+    # @param [Integer] x
+    # @param [Integer] y
+    # @param [Sketchup::View] view
+    # @return [Array(Symbol, Integer), nil] `:button` or `:edges`, and the axis
+    #   it chooses: `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`.
+    def control_at(x, y, view)
+      axis = @axis_buttons.pick(x, y)
+      return [:button, axis] if axis
+      # The handles go before the edges they are in front of.
+      return nil if @handles.each_value.any? { |handle| handle.at?(x, y, view) }
+
+      axis = @boundingbox.pick_axis(x, y, view)
+      axis ? [:edges, axis] : nil
+    end
+
+    # The axis that a click at the given position in the viewport chooses.
     #
     # @param [Integer] x
     # @param [Integer] y
     # @param [Sketchup::View] view
     # @return [Integer, nil] `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`
     def axis_at(x, y, view)
-      axis = @axis_buttons.pick(x, y)
-      return axis if axis
-      # The handles go before the edges they are in front of.
-      return nil if @handles.each_value.any? { |handle| handle.at?(x, y, view) }
-
-      @boundingbox.pick_axis(x, y, view)
+      control = control_at(x, y, view)
+      control ? control.last : nil
     end
 
     # What choosing the given axis does.

@@ -819,6 +819,18 @@ module TT::Plugins::TrueBend
         assert_bend(tool, instance, X, 0)
       end
 
+      def test_click_needs_the_mouse_released_on_the_control_it_was_pressed_on
+        instance = create_solid(X)
+        look_at(instance)
+        tool = TrueBendTool.new(instance)
+
+        click(tool, button_position(tool, Y), edge_position(instance, Y))
+        assert_bend(tool, instance, X, 0, 'From the green button to a green edge')
+
+        click(tool, edge_position(instance, Y), button_position(tool, Y))
+        assert_bend(tool, instance, X, 0, 'From a green edge to the green button')
+      end
+
       def test_click_away_from_buttons_and_edges_keeps_the_bend
         instance = create_solid(X)
         look_at(instance)
