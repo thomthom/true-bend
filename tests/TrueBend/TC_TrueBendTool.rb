@@ -1133,7 +1133,7 @@ module TT::Plugins::TrueBend
       end
 
 
-      def test_activate_watches_the_model
+      def test_activate_watches_the_model_of_the_instance
         instance = create_solid(X)
         tool = TrueBendTool.new(instance)
 

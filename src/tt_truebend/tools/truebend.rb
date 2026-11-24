@@ -39,6 +39,9 @@ module TT::Plugins::TrueBend
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     def initialize(instance)
       @instance = instance
+      # The model the instance is in. It is not the active model when several
+      # are open and the user is working in another.
+      @model = instance.model
       @bend_by_distance = false
       @boundingbox = BoundingBoxWidget.new(instance)
       @axis_buttons = AxisButtons.new
@@ -73,7 +76,7 @@ module TT::Plugins::TrueBend
     def activate
       attach_observers
       update_ui
-      Sketchup.active_model.active_view.invalidate
+      @model.active_view.invalidate
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
     end
@@ -404,11 +407,10 @@ module TT::Plugins::TrueBend
     def commit_bend
       return unless @bender.can_bend?
 
-      model = Sketchup.active_model
-      model.start_operation('Bend', true)
+      @model.start_operation('Bend', true)
       @bender.commit
-      model.commit_operation
-      model.tools.pop_tool
+      @model.commit_operation
+      @model.tools.pop_tool
     end
 
     # @param [Sketchup::View] view
@@ -448,18 +450,17 @@ module TT::Plugins::TrueBend
     end
 
     def attach_observers
-      model = Sketchup.active_model
-      return if model.nil?
+      return unless @model.valid?
 
-      model.remove_observer(@observer)
-      model.add_observer(@observer)
+      @model.remove_observer(@observer)
+      @model.add_observer(@observer)
     end
 
+    # The model is no longer valid once it has been closed.
     def detach_observers
-      model = Sketchup.active_model
-      return if model.nil?
+      return unless @model.valid?
 
-      model.remove_observer(@observer)
+      @model.remove_observer(@observer)
     end
 
   end # class

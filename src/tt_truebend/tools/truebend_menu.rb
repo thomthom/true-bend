@@ -19,7 +19,7 @@ module TT::Plugins::TrueBend
       }
 
       id = menu.add_item('Cancel') {
-        reset_bend(Sketchup.active_model.active_view)
+        reset_bend(@model.active_view)
       }
       menu.set_validation_proc(id) {
         @bender.can_bend? ? MF_ENABLED : MF_DISABLED | MF_GRAYED
@@ -65,7 +65,7 @@ module TT::Plugins::TrueBend
         id = submenu.add_item(name) {
           select_axis(axis) unless axis == @axes.axis
           update_ui
-          Sketchup.active_model.active_view.invalidate
+          @model.active_view.invalidate
         }
         submenu.set_validation_proc(id) {
           if axis == @axes.axis
@@ -99,7 +99,7 @@ module TT::Plugins::TrueBend
       title = setting.to_s.split('_').map(&:capitalize).join(' ')
       id = menu.add_item(title) {
         SETTINGS.send(setter, !SETTINGS.send(getter))
-        Sketchup.active_model.active_view.invalidate
+        @model.active_view.invalidate
       }
       menu.set_validation_proc(id) {
         SETTINGS.send(getter) ? MF_CHECKED : MF_ENABLED
