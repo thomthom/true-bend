@@ -350,8 +350,7 @@ module TT::Plugins::TrueBend
       @axis_buttons.draw(view)
     end
 
-    # Sets which axis of the instance to bend it along. The angle of the bend
-    # is kept.
+    # Sets which axis of the instance to bend it along. The bend is kept.
     #
     # @param [Integer] axis `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`
     def select_axis(axis)
@@ -362,8 +361,9 @@ module TT::Plugins::TrueBend
       select_bend(options.first)
     end
 
-    # Sets which of the directions on offer to bend the instance in. The angle
-    # of the bend is kept.
+    # Sets which of the directions on offer to bend the instance in. The bend is
+    # kept by the value the Measurements box is showing: its angle, or its
+    # distance when a distance was typed.
     #
     # @param [BendAxes] axes One of the keys in `@handles`.
     def select_bend(axes)
@@ -380,7 +380,11 @@ module TT::Plugins::TrueBend
       return if previous.nil?
 
       @bender.subdivisions = previous.subdivisions
-      @bender.bend_like(previous)
+      if bend_by_distance?
+        @bender.bend_as_far_as(previous)
+      else
+        @bender.bend_like(previous)
+      end
     end
 
     # @param [BendAxes] axes

@@ -120,6 +120,20 @@ module TT::Plugins::TrueBend
       nil
     end
 
+    # Bends by the same distance as the given bender, and like it towards or
+    # away from the direction the bend is set up for. The bend stops at a full
+    # circle when the distance is more than that takes.
+    #
+    # @param [Bender] other
+    # @return [nil]
+    def bend_as_far_as(other)
+      return reset unless other.bending? && other.can_bend?
+
+      direction = other.concave? ? @normal.clone : @normal.reverse
+      direction.length = other.distance.abs
+      bend(direction)
+    end
+
     # @return [Sketchup::ComponentInstance, Sketchup::Group]
     def commit
       instance = ensure_groups_are_uniqe(@instance)

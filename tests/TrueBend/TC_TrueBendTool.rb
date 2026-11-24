@@ -106,6 +106,21 @@ module TT::Plugins::TrueBend
         assert_in_delta(expected_distance, bender.direction.length.to_f, TOLERANCE, message)
       end
 
+      # Asserts that the tool has the instance bent by the given distance, away
+      # from the face the bend is set up towards.
+      #
+      # @param [TrueBendTool] tool
+      # @param [Float] distance
+      # @param [String] message
+      def assert_distance_away(tool, distance, message = nil)
+        bender = bender_of(tool)
+        assert_in_delta(distance, bender.distance.to_f, TOLERANCE, message)
+        assert(bender.convex?, message)
+        assert_vector(axes_of(tool).normal.reverse, bender.direction.normalize, message)
+        expected_angle = 360.degrees * distance / bender.max_bend_distance.to_f
+        assert_in_delta(expected_angle, bender.angle, 1.0e-9, message)
+      end
+
       # @param [TrueBendTool] tool
       # @return [BendAxes] The way the tool is set up to bend the instance.
       def axes_of(tool)
@@ -547,6 +562,61 @@ module TT::Plugins::TrueBend
 
         assert_in_delta(60.degrees, bender_of(tool).angle, 1.0e-9)
         assert(bender_of(tool).concave?)
+      end
+
+      def test_on_key_down_keeps_a_distance_that_was_typed
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bend_quarter_circle_away(tool)
+        type(tool, '1"')
+        assert_in_delta(1.0, bender_of(tool).distance.to_f, TOLERANCE)
+
+        press(tool, VK_LEFT)
+        assert_bend(tool, instance, Y, 0)
+        assert_distance_away(tool, 1.0, 'Another axis')
+
+        press(tool, VK_LEFT)
+        assert_bend(tool, instance, Y, 1)
+        assert_distance_away(tool, 1.0, 'Other direction')
+      end
+
+      def test_on_key_down_stops_a_typed_distance_at_a_full_circle
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '10"')
+        assert_in_delta(10.0, bender_of(tool).distance.to_f, TOLERANCE)
+
+        press(tool, VK_LEFT)
+
+        bender = bender_of(tool)
+        assert_in_delta(360.degrees, bender.angle, 1.0e-9)
+        assert_in_delta(bender.max_bend_distance.to_f, bender.distance.to_f, TOLERANCE)
+        assert(bender.concave?)
+      end
+
+      def test_on_key_down_keeps_the_angle_once_an_angle_is_typed_after_a_distance
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '1"')
+        type(tool, '60deg')
+
+        press(tool, VK_LEFT)
+
+        assert_in_delta(60.degrees, bender_of(tool).angle, 1.0e-9)
+      end
+
+      def test_click_axis_button_keeps_a_distance_that_was_typed
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bend_quarter_circle_away(tool)
+        type(tool, '1"')
+
+        click(tool, button_position(tool, Z))
+
+        assert_bend(tool, instance, Z, 0)
+        assert_distance_away(tool, 1.0)
       end
 
       def test_on_key_down_keeps_the_number_of_segments
