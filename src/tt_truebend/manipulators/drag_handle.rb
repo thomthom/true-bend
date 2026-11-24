@@ -71,9 +71,10 @@ module TT::Plugins::TrueBend
       @direction.length = value
     end
 
+    # @param [Sketchup::View] view The view the handle is drawn in. The handle
+    #   has a fixed length on screen, so its length in the model depends on it.
     # @return [Geom::BoundingBox]
-    def bounds
-      view = Sketchup.active_model.active_view
+    def bounds(view)
       view = HighDpiView.new(view)
       points = handle_points(view)
       bounds = Geom::BoundingBox.new

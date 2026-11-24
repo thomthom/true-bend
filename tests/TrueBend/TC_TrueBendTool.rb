@@ -844,6 +844,20 @@ module TT::Plugins::TrueBend
       end
 
 
+      def test_get_extents_covers_the_reference_segment_and_the_handles
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+
+        extents = without_user_feedback { tool.getExtents }
+
+        segment = bender_of(tool).segment
+        assert(extents.contains?(segment.start), 'Start of the reference segment')
+        assert(extents.contains?(segment.end), 'End of the reference segment')
+        handles_of(tool).each_with_index { |handle, index|
+          assert(extents.contains?(handle.origin), "Handle #{index}")
+        }
+      end
+
       # @param [TrueBendTool] tool
       # @return [String] The tooltip the tool leaves on the view when it draws.
       def tooltip_after_draw(tool)

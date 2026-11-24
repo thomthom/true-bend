@@ -252,7 +252,8 @@ module TT::Plugins::TrueBend
     def getExtents
       bounds = Geom::BoundingBox.new
       bounds.add(@bender.bounds)
-      @handles.each_value { |handle| bounds.add(handle.bounds) }
+      view = @model.active_view
+      @handles.each_value { |handle| bounds.add(handle.bounds(view)) }
       bounds
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
