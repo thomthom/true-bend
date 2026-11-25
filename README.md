@@ -24,8 +24,34 @@ Toggle soft+smooth for the newly created edges:
 
 ## VCB Input
 
-By default the VCB accept bend angle. But you can switch to other modes by appending a unit type:
+A number without a suffix is read in the current input mode: the angle, the distance or the radius of the bend. The VCB label shows which mode is current.
+
+Switch the input mode with the three input mode buttons in the viewport, or by appending a suffix to the value:
 
 * Angle Input: `45deg`
+* Bend Distance: `500mm`, or any other length unit. (This should be a value less than the width of the bottom from bounding box segment.)
+* Bend Radius: `400r`. A length unit goes before the "r", as in `400mmr`.
+
+The input mode is remembered between sessions.
+
+Appending "s" sets the segment count without changing the input mode:
+
 * Segment Count: `8s`
-* Bend Distance: `500mm` (This should be a value less than the width of the bottom from bounding box segment.)
+
+## Bend Options
+
+Two more buttons in the viewport toggle the bend options. The context menu has the same options.
+
+* Segmented: Bend in straight segments.
+* Soften/Smooth: Soften and smooth the edges between the segments. A bend that is not segmented is always soft and smooth.
+
+## Bend Axis
+
+The instance bends along its red axis, unless it has no length along that axis. To bend along another axis, do one of the following:
+
+* Click the red, green or blue axis button in the viewport.
+* Click an edge of the bounding box that runs along the axis.
+* Press an arrow key: Right for red, Left for green and Up for blue.
+* Pick the axis from Bend Along in the context menu.
+
+Along each axis the instance can bend in two directions, and each direction has its own handle. Drag the other handle to bend in the other direction, or choose the axis again with its button, an edge or its arrow key.

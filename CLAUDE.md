@@ -26,6 +26,12 @@ Each commit contains one behaviour change together with its tests. An issue
 reference goes at the end of the subject line, as in
 `Fix errors after setting bend to zero. Fixes #19`.
 
+## README
+
+When a change alters what an end user sees or does, update `README.md` in the
+same commit. Describe what the user can do, not how it works, and leave out
+details a user doesn't need.
+
 ## Writing
 
 Write comments, documentation and commit messages as complete, grammatical
