@@ -11,9 +11,9 @@ module TT::Plugins::TrueBend
       read_method = boolean?(default) ? "#{key}?".to_sym : key.to_sym
       write_method = "#{key}=".to_sym
       self.class_eval {
-        define_method(read_method) { |default_value = default|
-          value = read(key.to_s, default_value)
-          default.is_a?(Symbol) ? symbol_value(value, default_value) : value
+        define_method(read_method) {
+          value = read(key.to_s, default)
+          default.is_a?(Symbol) ? symbol_value(value, default) : value
         }
         define_method(write_method) { |value|
           write(key.to_s, value)

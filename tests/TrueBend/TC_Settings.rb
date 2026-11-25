@@ -175,6 +175,16 @@ module TT::Plugins::TrueBend
         }
       end
 
+      def test_reader_does_not_accept_a_default
+        with_preferences {
+          settings = ExampleSettings.new('Example')
+
+          assert_raises(ArgumentError, 'reader') { settings.mode(:radius) }
+          assert_raises(ArgumentError, 'predicate') { settings.enabled?(false) }
+          assert_equal(:angle, settings.mode)
+        }
+      end
+
     end # class
   end # module
 end # module
