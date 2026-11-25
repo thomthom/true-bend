@@ -54,10 +54,20 @@ module TT::Plugins::TrueBend
     #
     # @raise [InputError]
     def radius
-      # `String#to_l` rejects trailing whitespace after a unit.
-      Validator.new(@text.chomp('r').rstrip.to_l)
-    rescue ArgumentError => error
-      raise InputError, error.message
+      length_without('r')
+    end
+
+    def sagitta?
+      @text.end_with?('sg')
+    end
+
+    # Accepts the length with or without the "sg" suffix.
+    #
+    # @return [Validator]
+    #
+    # @raise [InputError]
+    def sagitta
+      length_without('sg')
     end
 
     # Checks if the input is segments notation.
@@ -68,6 +78,19 @@ module TT::Plugins::TrueBend
     # @return [Validator]
     def segments
       Validator.new(@text.to_i)
+    end
+
+    private
+
+    # @param [String] suffix The notation that might follow the length.
+    # @return [Validator]
+    #
+    # @raise [InputError]
+    def length_without(suffix)
+      # `String#to_l` rejects trailing whitespace after a unit.
+      Validator.new(@text.chomp(suffix).rstrip.to_l)
+    rescue ArgumentError => error
+      raise InputError, error.message
     end
 
   end

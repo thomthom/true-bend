@@ -609,6 +609,201 @@ module TT::Plugins::TrueBend
         refute(bender.can_bend?)
       end
 
+      # @param [Float] length The length of the reference segment.
+      # @param [Float] angle In radians.
+      # @return [Float] The bend distance that gives the angle.
+      def distance_for_angle(length, angle)
+        (length / Math::PI) * angle / 360.degrees
+      end
+
+      def test_sagitta_is_zero_without_a_bend
+        assert_equal(0.0, create_bender.sagitta.to_f)
+      end
+
+      def test_set_sagitta_bends_towards_the_normal_when_there_is_no_bend
+        bender = create_bender
+        radius = 100.0 / (Math::PI / 2.0)
+
+        bender.sagitta = radius * (1.0 - Math.sqrt(0.5))
+
+        assert_in_delta(90.degrees, bender.angle, 1.0e-9)
+        assert_in_delta(radius, bender.radius.to_f, TOLERANCE)
+        assert_in_delta(100.0, bender.arc_length.to_f, TOLERANCE)
+        distance = distance_for_angle(100.0, 90.degrees)
+        assert_vector(Geom::Vector3d.new(0, -distance, 0), bender.direction)
+        assert(bender.concave?)
+      end
+
+      def test_set_sagitta_of_half_a_circle
+        bender = create_bender
+
+        bender.sagitta = 100.0 / Math::PI
+
+        assert_in_delta(180.degrees, bender.angle, 1.0e-9)
+      end
+
+      # A search for the angle over the full circle, where two angles can have
+      # the same sagitta, fails for the largest of these angles.
+      def test_set_sagitta_gives_every_angle_up_to_the_largest_sagitta
+        bender = create_bender
+
+        (10..260).step(10) { |degrees|
+          angle = degrees.degrees
+          radius = 100.0 / angle
+
+          bender.sagitta = radius * (1.0 - Math.cos(angle / 2.0))
+
+          assert_in_delta(angle, bender.angle, 1.0e-9, "#{degrees} degrees")
+        }
+      end
+
+      # The sagitta, arc length and angle are the example in the code linked
+      # from issue #13.
+      def test_set_sagitta_matches_a_known_angle
+        instance = create_solid(BendAxes::X)
+        segment = Segment.new(ORIGIN, Geom::Point3d.new(91.26921437023744, 0, 0))
+        bender = Bender.new(instance, segment, Y_AXIS.reverse)
+
+        bender.sagitta = 19.68503937007874
+
+        assert_in_delta(1.8545904360032246, bender.angle, 1.0e-9)
+      end
+
+      def test_set_sagitta_uses_the_smaller_of_two_angles_with_the_same_sagitta
+        bender = create_bender
+
+        # Bends of about 221 and 315 degrees both have this sagitta.
+        bender.sagitta = 35
+
+        assert_in_delta(35.0, bender.sagitta.to_f, TOLERANCE)
+        assert_operator(bender.angle, :>, 180.degrees)
+        assert_operator(bender.angle, :<, Bender::MAX_SAGITTA_ANGLE)
+      end
+
+      def test_set_sagitta_negative_bends_away_from_the_normal
+        bender = create_bender
+
+        bender.sagitta = -100.0 / Math::PI
+
+        assert_in_delta(180.degrees, bender.angle, 1.0e-9)
+        distance = distance_for_angle(100.0, 180.degrees)
+        assert_vector(Geom::Vector3d.new(0, distance, 0), bender.direction)
+        assert(bender.convex?)
+      end
+
+      def test_set_sagitta_keeps_the_direction_of_the_bend
+        bender = create_bender
+        bender.bend(Geom::Vector3d.new(0, 2, 0))
+
+        bender.sagitta = 10
+
+        assert_in_delta(10.0, bender.sagitta.to_f, TOLERANCE)
+        assert(bender.convex?)
+      end
+
+      def test_set_sagitta_stops_at_the_largest_sagitta
+        bender = create_bender
+
+        bender.sagitta = 50
+
+        assert_in_delta(Bender::MAX_SAGITTA_ANGLE, bender.angle, 1.0e-9)
+        assert_in_delta(bender.max_sagitta.to_f, bender.sagitta.to_f, TOLERANCE)
+      end
+
+      def test_set_sagitta_of_zero_removes_the_bend
+        bender = create_bender
+        bender.bend(Geom::Vector3d.new(0, -5, 0))
+
+        bender.sagitta = 0
+
+        refute(bender.bending?)
+        assert_equal(0.0, bender.sagitta.to_f)
+      end
+
+      def test_set_sagitta_after_a_sagitta_of_zero_bends_to_the_same_side
+        bender = create_bender
+        bender.bend(Geom::Vector3d.new(0, 5, 0))
+        bender.sagitta = 0
+
+        bender.sagitta = 10
+
+        assert(bender.can_bend?)
+        assert_in_delta(10.0, bender.sagitta.to_f, TOLERANCE)
+        assert(bender.convex?)
+      end
+
+      def test_max_sagitta_is_the_largest_sagitta_of_any_angle
+        bender = create_bender
+        bender.distance = 1
+        max = bender.max_sagitta.to_f
+
+        assert_in_delta(36.230567688835424, max, TOLERANCE)
+        bender.angle = Bender::MAX_SAGITTA_ANGLE
+        assert_in_delta(max, bender.sagitta.to_f, TOLERANCE)
+        [-1.degrees, 1.degrees].each { |offset|
+          bender.angle = Bender::MAX_SAGITTA_ANGLE + offset
+          assert_operator(bender.sagitta.to_f, :<, max - 1.0e-4)
+        }
+      end
+
+      def test_match_sagitta_keeps_the_sagitta_for_a_segment_of_another_length
+        other = create_bender
+        other.sagitta = -3
+        bender = create_short_bender
+
+        bender.match_sagitta(other)
+
+        assert_in_delta(3.0, bender.sagitta.to_f, TOLERANCE)
+        assert_vector(X_AXIS.reverse, bender.direction.normalize)
+        assert(bender.convex?)
+      end
+
+      def test_match_sagitta_bends_towards_the_normal_like_the_other
+        other = create_bender
+        other.sagitta = 3
+        bender = create_short_bender
+
+        bender.match_sagitta(other)
+
+        assert_in_delta(3.0, bender.sagitta.to_f, TOLERANCE)
+        assert_vector(X_AXIS, bender.direction.normalize)
+        assert(bender.concave?)
+      end
+
+      def test_match_sagitta_stops_at_the_largest_sagitta
+        # This sagitta is valid for the long segment and too large for the
+        # short one.
+        other = create_bender
+        other.sagitta = 20
+        bender = create_short_bender
+
+        bender.match_sagitta(other)
+
+        assert_in_delta(Bender::MAX_SAGITTA_ANGLE, bender.angle, 1.0e-9)
+        assert_in_delta(bender.max_sagitta.to_f, bender.sagitta.to_f, TOLERANCE)
+      end
+
+      def test_match_sagitta_keeps_an_angle_beyond_the_largest_sagitta
+        other = create_bender
+        other.bend(Geom::Vector3d.new(0, distance_for_angle(100.0, 300.degrees), 0))
+        bender = create_bender
+
+        bender.match_sagitta(other)
+
+        assert_in_delta(300.degrees, bender.angle, 1.0e-9)
+        assert(bender.convex?)
+      end
+
+      def test_match_sagitta_without_a_bend_resets
+        bender = create_bender
+        bender.bend(Geom::Vector3d.new(0, -5, 0))
+
+        bender.match_sagitta(create_bender)
+
+        refute(bender.bending?)
+        refute(bender.can_bend?)
+      end
+
     end # class
   end # module
 end # module

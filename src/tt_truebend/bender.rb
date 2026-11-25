@@ -25,6 +25,11 @@ module TT::Plugins::TrueBend
 
     TAU = Math::PI * 2
 
+    # The sagitta of a bend increases with the angle up to this angle, in
+    # radians, and decreases beyond it. It is the solution of
+    # tan(angle / 4) = angle / 2 within a full circle.
+    MAX_SAGITTA_ANGLE = 4.662244740828845
+
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     # @param [Segment] segment The reference segment for the bend.
     # @param [Geom::Vector3d] normal The direction in which the bend is made.
@@ -145,6 +150,22 @@ module TT::Plugins::TrueBend
       nil
     end
 
+    # Copies the sagitta and the bend side (concave or convex) of another
+    # bender. The sagitta is clamped to {#max_sagitta}.
+    #
+    # @param [Bender] other
+    # @return [nil]
+    def match_sagitta(other)
+      # Beyond this angle, setting the sagitta would give a smaller angle with
+      # the same sagitta.
+      return match_angle(other) if other.angle.abs > MAX_SAGITTA_ANGLE
+      return reset unless other.bending? && other.can_bend?
+
+      @direction = other.concave? ? @normal.clone : @normal.reverse
+      self.sagitta = other.sagitta.to_f.abs
+      nil
+    end
+
     # @return [Sketchup::ComponentInstance, Sketchup::Group]
     def commit
       instance = ensure_groups_are_uniqe(@instance)
@@ -231,11 +252,28 @@ module TT::Plugins::TrueBend
 
     # @return [Length]
     def sagitta
-      # Compute the arc segment sagitta (distance).
-      # https://en.wikipedia.org/wiki/Circular_segment
-      # h = R(1 - cos(a/2))
-      #     R - sqrt(R^2 - (c^2/4))
-      (radius * (1 - Math.cos(angle / 2))).to_l
+      sagitta_for(angle).to_l
+    end
+
+    # A negative sagitta flips the bend direction. Two angles can have the same
+    # sagitta, and the smaller one is used. The sagitta is clamped to
+    # {#max_sagitta}.
+    #
+    # @param [Length] value
+    def sagitta=(value)
+      angle = angle_for_sagitta(value.to_f.abs)
+      if angle.zero?
+        # A distance of zero would lose the side the bend is on.
+        self.angle = 0.0
+      else
+        distance = max_bend_distance * (angle / TAU)
+        self.distance = value < 0 ? -distance : distance
+      end
+    end
+
+    # @return [Length] The largest sagitta the bend can have.
+    def max_sagitta
+      sagitta_for(MAX_SAGITTA_ANGLE).to_l
     end
 
     # @return [Length]
@@ -319,10 +357,33 @@ module TT::Plugins::TrueBend
 
       view.tooltip = "Angle: #{degrees}\n"\
                      "Radius: #{radius}\n"\
-                     "Bend: #{distance}"
+                     "Bend: #{distance}\n"\
+                     "Sagitta: #{sagitta.abs.to_l}"
     end
 
     private
+
+    # @param [Float] angle Angle in radians.
+    # @return [Float] The sagitta of a bend by the given angle.
+    def sagitta_for(angle)
+      return 0.0 if angle.zero?
+
+      # https://en.wikipedia.org/wiki/Circular_segment
+      # h = R(1 - cos(a/2)), where 1 - cos(a/2) = 2 * sin(a/4)^2. The latter
+      # keeps its precision for small angles. Dividing by the angle last avoids
+      # an infinite radius for the smallest angles.
+      @segment.length * 2.0 * (Math.sin(angle / 4.0)**2) / angle
+    end
+
+    # @param [Float] sagitta A sagitta that is not negative.
+    # @return [Float] The smallest angle, in radians, that gives the sagitta,
+    #   or `MAX_SAGITTA_ANGLE` when no angle does.
+    def angle_for_sagitta(sagitta)
+      # The angle has no closed-form solution. The sagitta increases with the
+      # angle over the whole range, which a binary search requires.
+      range = 0.0..MAX_SAGITTA_ANGLE
+      range.bsearch { |angle| sagitta_for(angle) >= sagitta } || MAX_SAGITTA_ANGLE
+    end
 
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     # @param [Array<Array(Geom::Point3d, Geom::Vector3d)>] planes

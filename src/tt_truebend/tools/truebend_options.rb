@@ -11,6 +11,7 @@ module TT::Plugins::TrueBend
       angle:       'Type the angle of the bend (45deg)',
       distance:    'Type the distance of the bend (500mm)',
       radius:      'Type the radius of the bend (500mmr)',
+      sagitta:     'Type the sagitta of the bend (50mmsg)',
       segmented:   'Bend in straight segments',
       soft_smooth: 'Soften and smooth the edges between the segments',
     }.freeze

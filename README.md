@@ -24,13 +24,16 @@ Toggle soft+smooth for the newly created edges:
 
 ## VCB Input
 
-A number without a suffix is read in the current input mode: the angle, the distance or the radius of the bend. The VCB label shows which mode is current.
+A number without a suffix is read in the current input mode: the angle, the distance, the radius or the sagitta of the bend. The VCB label shows which mode is current.
 
-Switch the input mode with the three input mode buttons in the viewport, or by appending a suffix to the value:
+Switch the input mode with the four input mode buttons in the viewport, or by appending a suffix to the value:
 
 * Angle Input: `45deg`
 * Bend Distance: `500mm`, or any other length unit. (This should be a value less than the width of the bottom from bounding box segment.)
 * Bend Radius: `400r`. A length unit goes before the "r", as in `400mmr`.
+* Bend Sagitta: `50sg`. The sagitta is the height of the arc above its chord. A length unit goes before the "sg", as in `50mmsg`.
+
+A bend can have a sagitta of at most about 36% of the length that is bent, which it has at a bend of about 267 degrees. A larger value is clamped to that. To bend further, drag the handle or enter an angle.
 
 The input mode is remembered between sessions.
 

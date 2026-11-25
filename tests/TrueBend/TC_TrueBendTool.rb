@@ -679,6 +679,56 @@ module TT::Plugins::TrueBend
         assert(bender_of(tool).convex?, 'Other direction')
       end
 
+      def test_on_key_down_keeps_a_sagitta_that_was_typed
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bend_quarter_circle_away(tool)
+        type(tool, '1"sg')
+        assert_in_delta(1.0, bender_of(tool).sagitta.to_f, TOLERANCE)
+
+        press(tool, VK_LEFT)
+        assert_bend(tool, instance, Y, 0)
+        assert_in_delta(1.0, bender_of(tool).sagitta.to_f, TOLERANCE, 'Another axis')
+        assert(bender_of(tool).convex?, 'Another axis')
+
+        press(tool, VK_LEFT)
+        assert_bend(tool, instance, Y, 1)
+        assert_in_delta(1.0, bender_of(tool).sagitta.to_f, TOLERANCE, 'Other direction')
+        assert(bender_of(tool).convex?, 'Other direction')
+      end
+
+      def test_on_key_down_stops_a_typed_sagitta_at_the_largest_sagitta
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '10"sg')
+        assert_in_delta(10.0, bender_of(tool).sagitta.to_f, TOLERANCE)
+
+        press(tool, VK_LEFT)
+
+        bender = bender_of(tool)
+        assert_in_delta(Bender::MAX_SAGITTA_ANGLE, bender.angle, 1.0e-9)
+        assert_in_delta(bender.max_sagitta.to_f, bender.sagitta.to_f, TOLERANCE)
+      end
+
+      # Setting the sagitta of such a bend would bend it by a smaller angle with
+      # the same sagitta.
+      def test_on_key_down_keeps_the_angle_of_a_bend_beyond_the_largest_sagitta
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '1"sg')
+        assert_equal(:sagitta, SETTINGS.bend_input_mode)
+        bender = bender_of(tool)
+        bender.distance = bender.max_bend_distance * 300.0 / 360.0
+        assert_in_delta(300.degrees, bender.angle, 1.0e-9)
+
+        press(tool, VK_RIGHT)
+
+        assert_bend(tool, instance, X, 1)
+        assert_in_delta(300.degrees, bender_of(tool).angle, 1.0e-9)
+      end
+
       def test_on_key_down_keeps_the_angle_once_an_angle_is_typed_after_a_distance
         instance = create_solid(X)
         tool = TrueBendTool.new(instance)
@@ -798,6 +848,12 @@ module TT::Plugins::TrueBend
         expected = ['40'.to_l.to_f, 100.0 / 360.degrees].max
         assert_in_delta(expected, bender_of(tool).radius.to_f, TOLERANCE, 'Radius')
         assert_equal(:radius, SETTINGS.bend_input_mode)
+
+        click(tool, option_position(tool, :sagitta))
+        type(tool, '2')
+        expected = ['2'.to_l.to_f, bender_of(tool).max_sagitta.to_f].min
+        assert_in_delta(expected, bender_of(tool).sagitta.to_f, TOLERANCE, 'Sagitta')
+        assert_equal(:sagitta, SETTINGS.bend_input_mode)
 
         click(tool, option_position(tool, :distance))
         type(tool, '3')
@@ -1030,7 +1086,20 @@ module TT::Plugins::TrueBend
 
         tooltip = tooltip_after_draw(tool)
 
-        assert_match(/\AAngle: .+\nRadius: .+\nBend: .+\z/, tooltip)
+        assert_match(/\AAngle: .+\nRadius: .+\nBend: .+\nSagitta: .+\z/, tooltip)
+      end
+
+      def test_draw_shows_a_positive_sagitta_for_a_negative_angle
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '-45')
+        sagitta = bender_of(tool).sagitta
+        assert_operator(sagitta, :<, 0)
+
+        tooltip = tooltip_after_draw(tool)
+
+        assert_equal("Sagitta: #{sagitta.abs.to_l}", tooltip.lines.last)
       end
 
       def test_draw_shows_what_a_click_would_do_in_the_tooltip_while_bent
@@ -1060,6 +1129,20 @@ module TT::Plugins::TrueBend
         tooltip = tooltip_after_draw(tool)
 
         assert_equal('Type the radius of the bend (500mmr)', tooltip)
+      end
+
+      def test_draw_shows_what_the_sagitta_button_does_in_the_tooltip
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 5
+        view = Sketchup.active_model.active_view
+        without_user_feedback {
+          tool.onMouseMove(0, *option_position(tool, :sagitta), view)
+        }
+
+        tooltip = tooltip_after_draw(tool)
+
+        assert_equal('Type the sagitta of the bend (50mmsg)', tooltip)
       end
 
       def test_draw_says_why_the_soft_smooth_button_is_unavailable
@@ -1380,6 +1463,174 @@ module TT::Plugins::TrueBend
 
         assert_equal(1, @messages.size)
         assert_in_delta(1.0, bender_of(tool).distance.to_f, TOLERANCE)
+      end
+
+      def test_on_user_text_sagitta_sets_the_sagitta
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+
+        type(tool, '10"sg')
+
+        bender = bender_of(tool)
+        assert_in_delta(10.0, bender.sagitta.to_f, TOLERANCE)
+        assert_in_delta(100.0, bender.arc_length.to_f, TOLERANCE)
+        assert(bender.concave?)
+        assert_equal(0, @beeps)
+        assert_empty(@messages)
+        assert_in_delta(bender.distance.to_f, handle_of(tool).distance.to_f, TOLERANCE, 'Handle')
+      end
+
+      def test_on_user_text_plain_number_after_a_sagitta_is_a_sagitta
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '10"sg')
+
+        type(tool, '5')
+
+        # A unitless number is in model units. In large units it is above the
+        # largest sagitta and gets clamped to it.
+        bender = bender_of(tool)
+        expected = ['5'.to_l.to_f, bender.max_sagitta.to_f].min
+        assert_in_delta(expected, bender.sagitta.to_f, TOLERANCE)
+      end
+
+      def test_on_user_text_length_after_a_sagitta_goes_back_to_distances
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '10"sg')
+        assert_equal(:sagitta, SETTINGS.bend_input_mode)
+
+        type(tool, '2"')
+
+        assert_in_delta(2.0, bender_of(tool).distance.to_f, TOLERANCE)
+      end
+
+      def test_on_user_text_radius_after_a_sagitta_goes_back_to_radii
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '10"sg')
+        assert_equal(:sagitta, SETTINGS.bend_input_mode)
+
+        type(tool, '50"r')
+
+        assert_in_delta(50.0, bender_of(tool).radius.to_f, TOLERANCE)
+        assert_equal(:radius, SETTINGS.bend_input_mode)
+      end
+
+      def test_on_user_text_negative_sagitta_bends_the_other_way
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+
+        type(tool, '-10"sg')
+
+        bender = bender_of(tool)
+        assert_in_delta(10.0, bender.sagitta.to_f, TOLERANCE)
+        assert(bender.convex?)
+      end
+
+      def test_on_user_text_sagitta_stops_at_the_largest_sagitta
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+
+        type(tool, '50"sg')
+
+        bender = bender_of(tool)
+        assert_in_delta(Bender::MAX_SAGITTA_ANGLE, bender.angle, 1.0e-9)
+        assert_in_delta(bender.max_sagitta.to_f, bender.sagitta.to_f, TOLERANCE)
+        assert_equal(0, @beeps)
+        assert_empty(@messages)
+      end
+
+      def test_on_user_text_sagitta_of_zero_removes_the_bend
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+
+        type(tool, '0"sg')
+
+        refute(bender_of(tool).bending?)
+        assert_equal(0, @beeps)
+        assert_empty(@messages)
+        # Drawing must not raise an error.
+        tooltip_after_draw(tool)
+      end
+
+      def test_on_user_text_sagitta_after_a_sagitta_of_zero_bends_to_the_same_side
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bend_quarter_circle_away(tool)
+        type(tool, '0"sg')
+
+        type(tool, '10"sg')
+
+        bender = bender_of(tool)
+        assert_in_delta(10.0, bender.sagitta.to_f, TOLERANCE)
+        assert(bender.convex?)
+        assert_equal(0, @beeps)
+        assert_empty(@messages)
+      end
+
+      def test_on_user_text_reports_a_sagitta_it_cannot_read
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+
+        type(tool, 'two"sg')
+
+        assert_equal(1, @messages.size)
+        assert_in_delta(1.0, bender_of(tool).distance.to_f, TOLERANCE)
+        assert_equal(:angle, SETTINGS.bend_input_mode)
+      end
+
+      def test_on_user_text_remembers_a_sagitta_for_the_next_use_of_the_tool
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '10"sg')
+
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '5')
+
+        bender = bender_of(tool)
+        expected = ['5'.to_l.to_f, bender.max_sagitta.to_f].min
+        assert_in_delta(expected, bender.sagitta.to_f, TOLERANCE)
+        assert_equal(:sagitta, SETTINGS.bend_input_mode)
+      end
+
+      def test_measurements_box_shows_the_sagitta
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        labels = []
+        values = []
+
+        Sketchup.stub(:vcb_label=, ->(label) { labels << label }) {
+          Sketchup.stub(:vcb_value=, ->(value) { values << value }) {
+            type(tool, '-10"sg')
+          }
+        }
+
+        assert_equal('Sagitta', labels.last)
+        assert_in_delta(10.0, values.last.to_f, TOLERANCE)
+      end
+
+      def test_measurements_box_shows_a_sagitta_of_zero_without_a_bend
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        values = []
+
+        Sketchup.stub(:vcb_value=, ->(value) { values << value }) {
+          click(tool, option_position(tool, :sagitta))
+        }
+
+        assert_equal(0.0, values.last.to_f)
       end
 
       def test_on_user_text_remembers_a_distance_for_the_next_use_of_the_tool

@@ -40,7 +40,7 @@ module TT::Plugins::TrueBend
 
     # The input mode determines how VCB input without a unit suffix is
     # interpreted.
-    INPUT_MODES = [:angle, :distance, :radius].freeze
+    INPUT_MODES = [:angle, :distance, :radius, :sagitta].freeze
 
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     def initialize(instance)
@@ -398,7 +398,8 @@ module TT::Plugins::TrueBend
     end
 
     # Selects one of the available bend directions. The current bend is
-    # preserved by angle, distance or radius, depending on the input mode.
+    # preserved by angle, distance, radius or sagitta, depending on the input
+    # mode.
     #
     # @param [BendAxes] axes One of the keys in `@handles`.
     def select_bend(axes)
@@ -420,6 +421,8 @@ module TT::Plugins::TrueBend
         @bender.match_distance(previous)
       when :radius
         @bender.match_radius(previous)
+      when :sagitta
+        @bender.match_sagitta(previous)
       else
         @bender.match_angle(previous)
       end
@@ -478,6 +481,7 @@ module TT::Plugins::TrueBend
     def typed_input_mode(input)
       return :angle if input.degrees?
       return :radius if input.radius?
+      return :sagitta if input.sagitta?
 
       # Any other suffix is assumed to be a length unit.
       :distance
@@ -492,6 +496,7 @@ module TT::Plugins::TrueBend
       case mode
       when :distance then input.length.value
       when :radius then input.radius.value
+      when :sagitta then input.sagitta.value
       else input.degrees.value
       end
     end
@@ -509,6 +514,8 @@ module TT::Plugins::TrueBend
         return UI.beep if value.to_f == 0.0
 
         @bender.radius = value
+      when :sagitta
+        @bender.sagitta = value
       else
         @bender.angle = value
       end
@@ -532,6 +539,10 @@ module TT::Plugins::TrueBend
         # The radius is infinite when there is no bend, and negative for a
         # negative angle.
         Sketchup.vcb_value = @bender.bending? ? @bender.radius.abs.to_l : ''
+      when :sagitta
+        Sketchup.vcb_label = 'Sagitta'
+        # The sagitta is negative for a negative angle.
+        Sketchup.vcb_value = @bender.sagitta.abs.to_l
       else
         Sketchup.vcb_label = 'Angle'
         Sketchup.vcb_value = Sketchup.format_angle(@bender.angle)

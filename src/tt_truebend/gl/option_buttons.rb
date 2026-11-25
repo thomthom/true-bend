@@ -16,7 +16,7 @@ module TT::Plugins::TrueBend
     # The first group selects the VCB input mode. The second contains the bend
     # options.
     GROUPS = [
-      [:angle, :distance, :radius],
+      [:angle, :distance, :radius, :sagitta],
       [:segmented, :soft_smooth],
     ].freeze
     OPTIONS = GROUPS.flatten.freeze
@@ -58,6 +58,11 @@ module TT::Plugins::TrueBend
       radius:      [
         [STIPPLE_SOLID, arc([12, 12], 8, 0, 360, 16)],
         [STIPPLE_SOLID, [[12, 12], arc([12, 12], 8, 35, 35, 1).first]],
+      ],
+      sagitta:     [
+        [STIPPLE_SOLID, arc([12, 17], 8, 0, 180, 8)],
+        [STIPPLE_SOLID, [[4, 17], [20, 17]]],
+        [STIPPLE_SOLID, [[12, 17], [12, 9]]],
       ],
       segmented:   [
         [STIPPLE_SOLID, [[3, 18], [8, 9], [16, 9], [21, 18]]],

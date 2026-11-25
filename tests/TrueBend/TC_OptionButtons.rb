@@ -34,7 +34,7 @@ module TT::Plugins::TrueBend
         buttons = OptionButtons.new
         x, y = buttons.center(:angle)
         between = (x + buttons.center(:distance)[0]) / 2
-        between_groups = (buttons.center(:radius)[0] + buttons.center(:segmented)[0]) / 2
+        between_groups = (buttons.center(:sagitta)[0] + buttons.center(:segmented)[0]) / 2
 
         assert_nil(buttons.pick(between, y), 'Between two buttons')
         assert_nil(buttons.pick(between_groups, y), 'Between the two groups')
@@ -66,7 +66,9 @@ module TT::Plugins::TrueBend
 
         assert_equal([x + group_step, y], buttons.center(:angle))
         assert_equal([x + group_step + step, y], buttons.center(:distance))
-        x = buttons.center(:radius)[0]
+        assert_equal([x + group_step + (2 * step), y], buttons.center(:radius))
+        assert_equal([x + group_step + (3 * step), y], buttons.center(:sagitta))
+        x = buttons.center(:sagitta)[0]
         assert_equal([x + group_step, y], buttons.center(:segmented))
         assert_equal([x + group_step + step, y], buttons.center(:soft_smooth))
       end

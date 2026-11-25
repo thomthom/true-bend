@@ -31,6 +31,7 @@ module TT::Plugins::TrueBend
         refute(VCBParser.new('45s').degrees?)
         refute(VCBParser.new('45mm').degrees?)
         refute(VCBParser.new('45r').degrees?)
+        refute(VCBParser.new('45sg').degrees?)
       end
 
       def test_degrees
@@ -67,6 +68,7 @@ module TT::Plugins::TrueBend
         assert(VCBParser.new('12s').modifier?)
         assert(VCBParser.new('10mm').modifier?)
         assert(VCBParser.new('10mmr').modifier?)
+        assert(VCBParser.new('10mmsg').modifier?)
         refute(VCBParser.new('10').modifier?)
         refute(VCBParser.new('-10').modifier?)
       end
@@ -87,6 +89,7 @@ module TT::Plugins::TrueBend
         refute(VCBParser.new('10mm').radius?)
         refute(VCBParser.new('10deg').radius?)
         refute(VCBParser.new('10s').radius?)
+        refute(VCBParser.new('10sg').radius?)
       end
 
       def test_radius
@@ -115,11 +118,48 @@ module TT::Plugins::TrueBend
         assert_raises(VCBParser::InputError) { parser.radius }
       end
 
+      def test_sagitta_query
+        assert(VCBParser.new('254mmsg').sagitta?)
+        assert(VCBParser.new('10sg').sagitta?)
+        refute(VCBParser.new('10').sagitta?)
+        refute(VCBParser.new('10mm').sagitta?)
+        refute(VCBParser.new('10deg').sagitta?)
+        refute(VCBParser.new('10s').sagitta?)
+        refute(VCBParser.new('10r').sagitta?)
+      end
+
+      def test_sagitta
+        result = VCBParser.new('254mmsg').sagitta
+
+        assert_kind_of(Validator, result)
+        assert_kind_of(Length, result.value)
+        assert_in_delta(10.0, result.value.to_f, 1.0e-9)
+      end
+
+      def test_sagitta_with_whitespace_before_the_sagitta_notation
+        assert_in_delta(10.0, VCBParser.new('254mm sg').sagitta.value.to_f, 1.0e-9)
+      end
+
+      def test_sagitta_without_the_sagitta_notation
+        assert_in_delta(10.0, VCBParser.new('254mm').sagitta.value.to_f, 1.0e-9)
+      end
+
+      def test_sagitta_negative
+        assert_in_delta(-10.0, VCBParser.new('-10"sg').sagitta.value.to_f, 1.0e-9)
+      end
+
+      def test_sagitta_invalid
+        parser = VCBParser.new('nonsensesg')
+
+        assert_raises(VCBParser::InputError) { parser.sagitta }
+      end
+
       def test_segments_query
         assert(VCBParser.new('12s').segments?)
         refute(VCBParser.new('12').segments?)
         refute(VCBParser.new('12deg').segments?)
         refute(VCBParser.new('12r').segments?)
+        refute(VCBParser.new('12sg').segments?)
       end
 
       def test_segments
