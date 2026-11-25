@@ -67,21 +67,28 @@ module TT::Plugins::TrueBend
       @cache[key] = value
       # SketchUp reads a Symbol back as nil, so it is stored as a String.
       stored_value = value.is_a?(Symbol) ? value.to_s : value
-      Sketchup.write_default(@preference_id, key, escape_quotes(stored_value))
+      Sketchup.write_default(@preference_id, key, escape_strings(stored_value))
       value
     end
 
-    def escape_quotes(value)
+    # SketchUp evaluates a stored String as a double-quoted Ruby String literal
+    # when it reads a preference. Unescaped, a double quote makes the
+    # preference read back as nil, a backslash starts an escape sequence and
+    # "#{}" is interpolated.
+    #
+    # @param [Object] value
+    # @return [Object]
+    def escape_strings(value)
       # TODO(thomthom): Include Hash? Likely value to store.
       case value
       when String
-        value.gsub('"', '\\"')
+        value.gsub(/[\\"#]/) { |character| "\\#{character}" }
       when Array
-        value.map { |sub_value| escape_quotes(sub_value) }
+        value.map { |sub_value| escape_strings(sub_value) }
       else
         value
       end
     end
 
-  end
-end # module TT::Plugins::SUbD
+  end # class
+end # module
