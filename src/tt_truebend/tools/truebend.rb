@@ -402,9 +402,9 @@ module TT::Plugins::TrueBend
 
       @bender.subdivisions = previous.subdivisions
       if bend_by_distance?
-        @bender.bend_as_far_as(previous)
+        @bender.match_distance(previous)
       else
-        @bender.bend_like(previous)
+        @bender.match_angle(previous)
       end
     end
 

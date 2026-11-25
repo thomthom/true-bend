@@ -106,12 +106,11 @@ module TT::Plugins::TrueBend
       nil
     end
 
-    # Bends by the same angle as the given bender, and like it towards or away
-    # from the direction the bend is set up for.
+    # Copies the angle and the bend side (concave or convex) of another bender.
     #
     # @param [Bender] other
     # @return [nil]
-    def bend_like(other)
+    def match_angle(other)
       return reset unless other.bending? && other.can_bend?
 
       @direction = other.concave? ? @normal.clone : @normal.reverse
@@ -120,13 +119,12 @@ module TT::Plugins::TrueBend
       nil
     end
 
-    # Bends by the same distance as the given bender, and like it towards or
-    # away from the direction the bend is set up for. The bend stops at a full
-    # circle when the distance is more than that takes.
+    # Copies the distance and the bend side (concave or convex) of another
+    # bender. The bend is clamped to a full circle.
     #
     # @param [Bender] other
     # @return [nil]
-    def bend_as_far_as(other)
+    def match_distance(other)
       return reset unless other.bending? && other.can_bend?
 
       direction = other.concave? ? @normal.clone : @normal.reverse
