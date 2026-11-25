@@ -1,6 +1,10 @@
 module TT::Plugins::TrueBend
   class Settings
 
+    # A setting with a Symbol as its default is read back as a Symbol. This
+    # only applies when the whole value is a Symbol, not to symbols inside an
+    # Array.
+    #
     # @param [Symbol] key
     # @param [Object] default
     def self.define(key, default = nil)
@@ -8,7 +12,8 @@ module TT::Plugins::TrueBend
       write_method = "#{key}=".to_sym
       self.class_eval {
         define_method(read_method) { |default_value = default|
-          read(key.to_s, default_value)
+          value = read(key.to_s, default_value)
+          default.is_a?(Symbol) ? symbol_value(value, default_value) : value
         }
         define_method(write_method) { |value|
           write(key.to_s, value)
@@ -46,10 +51,23 @@ module TT::Plugins::TrueBend
       end
     end
 
+    # @param [Object] value
+    # @param [Object] default
+    # @return [Object] The default if the value is neither a String nor a
+    #   Symbol.
+    def symbol_value(value, default)
+      case value
+      when Symbol then value
+      when String then value.to_sym
+      else default
+      end
+    end
+
     def write(key, value)
       @cache[key] = value
-      escaped_value = escape_quotes(value)
-      Sketchup.write_default(@preference_id, key, escaped_value)
+      # SketchUp reads a Symbol back as nil, so it is stored as a String.
+      stored_value = value.is_a?(Symbol) ? value.to_s : value
+      Sketchup.write_default(@preference_id, key, escape_quotes(stored_value))
       value
     end
 

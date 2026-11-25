@@ -83,7 +83,7 @@ module TT::Plugins::TrueBend
       def isolate_settings
         @settings_cache = SETTINGS.instance_variable_get(:@cache).dup
         SETTINGS.define_singleton_method(:write) { |key, value| @cache[key] = value }
-        SETTINGS.bend_input_mode = 'angle'
+        SETTINGS.bend_input_mode = :angle
         SETTINGS.bend_segmented = true
         SETTINGS.bend_soft_smooth = true
       end
@@ -797,18 +797,18 @@ module TT::Plugins::TrueBend
         type(tool, '40')
         expected = ['40'.to_l.to_f, 100.0 / 360.degrees].max
         assert_in_delta(expected, bender_of(tool).radius.to_f, TOLERANCE, 'Radius')
-        assert_equal('radius', SETTINGS.bend_input_mode)
+        assert_equal(:radius, SETTINGS.bend_input_mode)
 
         click(tool, option_position(tool, :distance))
         type(tool, '3')
         expected = ['3'.to_l.to_f, bender_of(tool).max_bend_distance.to_f].min
         assert_in_delta(expected, bender_of(tool).distance.to_f, TOLERANCE, 'Distance')
-        assert_equal('distance', SETTINGS.bend_input_mode)
+        assert_equal(:distance, SETTINGS.bend_input_mode)
 
         click(tool, option_position(tool, :angle))
         type(tool, '45')
         assert_in_delta(45.degrees, bender_of(tool).angle, 1.0e-9, 'Angle')
-        assert_equal('angle', SETTINGS.bend_input_mode)
+        assert_equal(:angle, SETTINGS.bend_input_mode)
       end
 
       def test_click_option_button_keeps_the_bend
@@ -870,7 +870,7 @@ module TT::Plugins::TrueBend
         click(tool, option_position(tool, :radius), option_position(tool, :distance))
         click(tool, option_position(tool, :segmented), button_position(tool, Y))
 
-        assert_equal('angle', SETTINGS.bend_input_mode)
+        assert_equal(:angle, SETTINGS.bend_input_mode)
         assert(bender_of(tool).segmented)
         assert_bend(tool, instance, X, 0)
       end
@@ -1395,7 +1395,7 @@ module TT::Plugins::TrueBend
         bender = bender_of(tool)
         expected = ['3'.to_l.to_f, bender.max_bend_distance.to_f].min
         assert_in_delta(expected, bender.distance.to_f, TOLERANCE)
-        assert_equal('distance', SETTINGS.bend_input_mode)
+        assert_equal(:distance, SETTINGS.bend_input_mode)
       end
 
       def test_on_user_text_remembers_a_radius_for_the_next_use_of_the_tool
@@ -1410,7 +1410,7 @@ module TT::Plugins::TrueBend
 
         expected = ['40'.to_l.to_f, 100.0 / 360.degrees].max
         assert_in_delta(expected, bender_of(tool).radius.to_f, TOLERANCE)
-        assert_equal('radius', SETTINGS.bend_input_mode)
+        assert_equal(:radius, SETTINGS.bend_input_mode)
       end
 
       def test_on_user_text_remembers_angles_for_the_next_use_of_the_tool
@@ -1425,11 +1425,11 @@ module TT::Plugins::TrueBend
         type(tool, '45')
 
         assert_in_delta(45.degrees, bender_of(tool).angle, 1.0e-9)
-        assert_equal('angle', SETTINGS.bend_input_mode)
+        assert_equal(:angle, SETTINGS.bend_input_mode)
       end
 
       def test_on_user_text_is_an_angle_when_what_is_remembered_makes_no_sense
-        SETTINGS.bend_input_mode = 'nonsense'
+        SETTINGS.bend_input_mode = :nonsense
         instance = create_solid(X)
         tool = TrueBendTool.new(instance)
         bender_of(tool).distance = 1
@@ -1447,7 +1447,7 @@ module TT::Plugins::TrueBend
         type(tool, '45d')
 
         assert_equal(1, @messages.size)
-        assert_equal('angle', SETTINGS.bend_input_mode)
+        assert_equal(:angle, SETTINGS.bend_input_mode)
         type(tool, '60')
         assert_in_delta(60.degrees, bender_of(tool).angle, 1.0e-9)
       end
@@ -1462,7 +1462,7 @@ module TT::Plugins::TrueBend
 
         type(second, '45deg')
 
-        assert_equal('angle', SETTINGS.bend_input_mode)
+        assert_equal(:angle, SETTINGS.bend_input_mode)
       end
 
       def test_measurements_box_shows_a_positive_radius_for_a_negative_angle

@@ -458,7 +458,7 @@ module TT::Plugins::TrueBend
 
     # @return [Symbol] The persisted input mode, or `:angle` if it is invalid.
     def stored_input_mode
-      mode = SETTINGS.bend_input_mode.to_s.to_sym
+      mode = SETTINGS.bend_input_mode
       INPUT_MODES.include?(mode) ? mode : :angle
     end
 
@@ -468,9 +468,9 @@ module TT::Plugins::TrueBend
     def input_mode=(mode)
       @input_mode = mode
       # Another tool instance might have changed the persisted mode.
-      return if SETTINGS.bend_input_mode == mode.to_s
+      return if SETTINGS.bend_input_mode == mode
 
-      SETTINGS.bend_input_mode = mode.to_s
+      SETTINGS.bend_input_mode = mode
     end
 
     # @param [VCBParser] input Input with a unit suffix.
