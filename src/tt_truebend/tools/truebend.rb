@@ -4,6 +4,7 @@ require 'tt_truebend/helpers/instance'
 require 'tt_truebend/manipulators/drag_handle'
 require 'tt_truebend/observers/transaction'
 require 'tt_truebend/tools/truebend_menu'
+require 'tt_truebend/tools/truebend_options'
 require 'tt_truebend/app_settings'
 require 'tt_truebend/bend_axes'
 require 'tt_truebend/bender'
@@ -15,6 +16,7 @@ module TT::Plugins::TrueBend
 
     include InstanceHelper
     include TrueBendMenu
+    include TrueBendOptions
 
     # Raised when the pre-conditions for the tool to operate isn't met.
     class BendError < RuntimeError; end
@@ -48,6 +50,7 @@ module TT::Plugins::TrueBend
       @input_mode = stored_input_mode
       @boundingbox = BoundingBoxWidget.new(instance)
       @axis_buttons = AxisButtons.new
+      @option_buttons = OptionButtons.new
 
       # The ways the instance can be bent, each with the handle to bend it by.
       # @return [Hash{BendAxes => DragHandle}]
@@ -57,9 +60,9 @@ module TT::Plugins::TrueBend
       @manipulator = nil
       @bender = nil
       @cached_direction = nil
-      # The axis that a click where the cursor is would choose, and the control
-      # the mouse button went down on.
+      # Hover and press state of the viewport controls.
       @hover_axis = nil
+      @hover_option = nil
       @pressed_control = nil
       # Bend along the red axis unless the instance has no length along it.
       axes = [BendAxes::X, BendAxes::Y, BendAxes::Z]
@@ -174,9 +177,8 @@ module TT::Plugins::TrueBend
       x, y = DPI.logical_pixels(x, y)
       view = HighDpiView.new(view)
       # The buttons are in front of everything else.
-      button = @axis_buttons.pick(x, y)
-      @pressed_control = button ? [:button, button] : nil
-      unless button || press_handle(flags, x, y, view)
+      @pressed_control = button_at(x, y)
+      unless @pressed_control || press_handle(flags, x, y, view)
         @pressed_control = control_at(x, y, view)
       end
       view.invalidate
@@ -196,7 +198,7 @@ module TT::Plugins::TrueBend
       # A click is the mouse button going down and up on the same control.
       pressed = @pressed_control
       @pressed_control = nil
-      choose_axis(pressed.last) if pressed && pressed == control_at(x, y, view)
+      choose(pressed) if pressed && pressed == control_at(x, y, view)
       update_ui
       view.invalidate
     rescue Exception => exception
@@ -226,8 +228,8 @@ module TT::Plugins::TrueBend
       x, y = DPI.logical_pixels(x, y)
       view = HighDpiView.new(view)
       @handles.each_value { |handle| handle.onMouseMove(flags, x, y, view) }
-      @hover_axis = @manipulator.picked? ? nil : axis_at(x, y, view)
-      view.tooltip = @hover_axis ? axis_hint(@hover_axis) : ''
+      hover(@manipulator.picked? ? nil : control_at(x, y, view))
+      view.tooltip = hover_hint || ''
       update_ui
       view.invalidate
     rescue Exception => exception
@@ -236,7 +238,7 @@ module TT::Plugins::TrueBend
 
     # @param [Sketchup::View] view
     def onMouseLeave(view)
-      @hover_axis = nil
+      hover(nil)
       view.invalidate
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
@@ -262,9 +264,11 @@ module TT::Plugins::TrueBend
       @handles.each_value { |handle| handle.draw(view) unless handle == @manipulator }
       @manipulator.draw(view)
       draw_axis_buttons(view)
+      draw_option_buttons(view)
       # The bender puts the measures of the bend in the tooltip. What a click
       # where the cursor is would do goes before that.
-      view.tooltip = axis_hint(@hover_axis) if @hover_axis
+      hint = hover_hint
+      view.tooltip = hint if hint
     rescue Exception => exception
       ERROR_REPORTER.handle(exception)
     end
@@ -308,34 +312,55 @@ module TT::Plugins::TrueBend
       end
     end
 
-    # The control for choosing an axis at the given position in the viewport.
-    # There is a button for each axis, and the edges of the bounds of the
-    # instance stand together for the axis they run along.
+    # Handles a click on a control.
+    #
+    # @param [Array(Symbol, Object)] control See {#control_at}.
+    def choose(control)
+      kind, choice = control
+      kind == :option ? choose_option(choice) : choose_axis(choice)
+    end
+
+    # @param [Array(Symbol, Object), nil] control The control under the
+    #   cursor. See {#control_at}.
+    def hover(control)
+      kind, choice = control
+      @hover_option = kind == :option ? choice : nil
+      @hover_axis = kind && kind != :option ? choice : nil
+    end
+
+    # @return [String, nil] The tooltip for the hovered control.
+    def hover_hint
+      return option_hint(@hover_option) if @hover_option
+
+      @hover_axis ? axis_hint(@hover_axis) : nil
+    end
+
+    # @param [Integer] x
+    # @param [Integer] y
+    # @return [Array(Symbol, Object), nil] `[:button, axis]` or
+    #   `[:option, option]`.
+    def button_at(x, y)
+      axis = @axis_buttons.pick(x, y)
+      return [:button, axis] if axis
+
+      option = @option_buttons.pick(x, y)
+      option ? [:option, option] : nil
+    end
+
+    # Buttons take priority over handles, and handles over bounding box edges.
     #
     # @param [Integer] x
     # @param [Integer] y
     # @param [Sketchup::View] view
-    # @return [Array(Symbol, Integer), nil] `:button` or `:edges`, and the axis
-    #   it chooses: `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`.
+    # @return [Array(Symbol, Object), nil] `[:button, axis]`,
+    #   `[:option, option]` or `[:edges, axis]`.
     def control_at(x, y, view)
-      axis = @axis_buttons.pick(x, y)
-      return [:button, axis] if axis
-      # The handles go before the edges they are in front of.
+      button = button_at(x, y)
+      return button if button
       return nil if @handles.each_value.any? { |handle| handle.at?(x, y, view) }
 
       axis = @boundingbox.pick_axis(x, y, view)
       axis ? [:edges, axis] : nil
-    end
-
-    # The axis that a click at the given position in the viewport chooses.
-    #
-    # @param [Integer] x
-    # @param [Integer] y
-    # @param [Sketchup::View] view
-    # @return [Integer, nil] `BendAxes::X`, `BendAxes::Y` or `BendAxes::Z`
-    def axis_at(x, y, view)
-      control = control_at(x, y, view)
-      control ? control.last : nil
     end
 
     # What choosing the given axis does.
@@ -357,11 +382,6 @@ module TT::Plugins::TrueBend
     def draw_axis_buttons(view)
       @axis_buttons.selected = @axes.axis
       @axis_buttons.hovered = @hover_axis
-      if @hover_axis
-        @axis_buttons.text = axis_hint(@hover_axis)
-      else
-        @axis_buttons.text = "Bending along the #{AXIS_NAMES[@axes.axis].downcase}"
-      end
       @axis_buttons.draw(view)
     end
 

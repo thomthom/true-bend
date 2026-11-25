@@ -1,8 +1,10 @@
+require 'tt_truebend/tools/truebend_options'
 require 'tt_truebend/app_settings'
 require 'tt_truebend/bend_axes'
 
 module TT::Plugins::TrueBend
-  # The context menu of `TrueBendTool`.
+  # The context menu of `TrueBendTool`. The option items rely on the tool also
+  # including `TrueBendOptions`.
   module TrueBendMenu
 
     # Menu titles for the axes an instance can be bent along, by axis index.
@@ -30,16 +32,14 @@ module TT::Plugins::TrueBend
       menu.add_separator
 
       id = menu.add_item('Segmented') {
-        @bender.segmented = !@bender.segmented
-        SETTINGS.bend_segmented = @bender.segmented
+        toggle_segmented
       }
       menu.set_validation_proc(id) {
         @bender.segmented ? MF_CHECKED : MF_ENABLED
       }
 
       id = menu.add_item('Soften/Smooth Segments') {
-        @bender.soft_smooth = !@bender.soft_smooth
-        SETTINGS.bend_soft_smooth = @bender.soft_smooth
+        toggle_soft_smooth
       }
       menu.set_validation_proc(id) {
         if @bender.segmented

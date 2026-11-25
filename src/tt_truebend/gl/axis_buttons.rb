@@ -2,14 +2,13 @@ require 'tt_truebend/constants/view'
 require 'tt_truebend/gl/drawing_helper'
 
 module TT::Plugins::TrueBend
-  # A row of buttons in the corner of the viewport, one for each axis, with a
-  # line of text next to them. Positions are in logical pixels.
+  # Viewport buttons for choosing the bend axis. Positions are in logical
+  # pixels.
   class AxisButtons
 
     include DrawingHelper
     include ViewConstants
 
-    # Where the row is in the viewport.
     LEFT = 16
     TOP = 16
     # The buttons are square.
@@ -18,15 +17,6 @@ module TT::Plugins::TrueBend
     # How far in from the edge of a button its colour starts, unless the
     # button is the selected one, which is filled.
     SWATCH_INSET = 6
-
-    TEXT_SPACING = 10
-    TEXT_HEIGHT = 16
-    TEXT_OPTIONS = {
-      font: 'Arial',
-      size: 10,
-      bold: true,
-      color: [48, 48, 48],
-    }.freeze
 
     BACKGROUND_COLOR = [255, 255, 255].freeze
     BORDER_COLOR = [128, 128, 128].freeze
@@ -45,14 +35,10 @@ module TT::Plugins::TrueBend
     #   unavailable.
     attr_accessor :disabled
 
-    # @return [String] The text next to the buttons.
-    attr_accessor :text
-
     def initialize
       @selected = nil
       @hovered = nil
       @disabled = []
-      @text = ''
     end
 
     # @param [Integer] x
@@ -77,7 +63,6 @@ module TT::Plugins::TrueBend
     # @param [Sketchup::View] view
     def draw(view)
       3.times { |axis| draw_button(view, axis) }
-      draw_text(view)
     end
 
     private
@@ -127,15 +112,6 @@ module TT::Plugins::TrueBend
       view.line_width = active ? 2 : 1
       view.drawing_color = active ? ACTIVE_BORDER_COLOR : BORDER_COLOR
       view.draw2d(GL_LINE_LOOP, quad(*bounds))
-    end
-
-    # @param [Sketchup::View] view
-    def draw_text(view)
-      return if @text.empty?
-
-      left = rectangle(2)[2] + TEXT_SPACING
-      top = TOP + ((SIZE - TEXT_HEIGHT) / 2)
-      view.draw_text(Geom::Point3d.new(left, top, 0), @text, TEXT_OPTIONS)
     end
 
   end # class

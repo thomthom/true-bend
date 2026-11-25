@@ -95,6 +95,15 @@ module TT::Plugins::TrueBend
         SETTINGS.instance_variable_set(:@cache, @settings_cache)
       end
 
+      # @param [TrueBendTool] tool
+      # @param [Symbol] option
+      # @return [Array(Numeric, Numeric)] The center of the option's button, in
+      #   device pixels.
+      def option_position(tool, option)
+        buttons = tool.instance_variable_get(:@option_buttons)
+        DPI.device_pixels(*buttons.center(option))
+      end
+
 
       # Runs the block without the ways the tool reaches out to the user.
       #
@@ -779,6 +788,117 @@ module TT::Plugins::TrueBend
         assert_same_points(solid_corners(X), local_positions(instance))
       end
 
+      def test_click_option_button_sets_what_a_typed_number_is
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+
+        click(tool, option_position(tool, :radius))
+        type(tool, '40')
+        expected = ['40'.to_l.to_f, 100.0 / 360.degrees].max
+        assert_in_delta(expected, bender_of(tool).radius.to_f, TOLERANCE, 'Radius')
+        assert_equal('radius', SETTINGS.bend_input_mode)
+
+        click(tool, option_position(tool, :distance))
+        type(tool, '3')
+        expected = ['3'.to_l.to_f, bender_of(tool).max_bend_distance.to_f].min
+        assert_in_delta(expected, bender_of(tool).distance.to_f, TOLERANCE, 'Distance')
+        assert_equal('distance', SETTINGS.bend_input_mode)
+
+        click(tool, option_position(tool, :angle))
+        type(tool, '45')
+        assert_in_delta(45.degrees, bender_of(tool).angle, 1.0e-9, 'Angle')
+        assert_equal('angle', SETTINGS.bend_input_mode)
+      end
+
+      def test_click_option_button_keeps_the_bend
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bend_quarter_circle_away(tool)
+
+        OptionButtons::OPTIONS.each { |option|
+          click(tool, option_position(tool, option))
+
+          assert_bend(tool, instance, X, 0, option.to_s)
+          assert_quarter_circle_away(tool, option.to_s)
+        }
+      end
+
+      def test_click_segmented_button_switches_between_segments_and_a_true_curve
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+
+        click(tool, option_position(tool, :segmented))
+        refute(bender_of(tool).segmented, 'First click')
+        refute(SETTINGS.bend_segmented?, 'First click')
+
+        click(tool, option_position(tool, :segmented))
+        assert(bender_of(tool).segmented, 'Second click')
+        assert(SETTINGS.bend_segmented?, 'Second click')
+      end
+
+      def test_click_soft_smooth_button_switches_softening_of_the_segment_edges
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+
+        click(tool, option_position(tool, :soft_smooth))
+        refute(bender_of(tool).soft_smooth, 'First click')
+        refute(SETTINGS.bend_soft_smooth?, 'First click')
+
+        click(tool, option_position(tool, :soft_smooth))
+        assert(bender_of(tool).soft_smooth, 'Second click')
+        assert(SETTINGS.bend_soft_smooth?, 'Second click')
+        assert_equal(0, @beeps)
+      end
+
+      def test_click_soft_smooth_button_is_refused_for_a_true_curve
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        click(tool, option_position(tool, :segmented))
+
+        click(tool, option_position(tool, :soft_smooth))
+
+        assert_equal(1, @beeps)
+        assert(bender_of(tool).soft_smooth)
+        assert(SETTINGS.bend_soft_smooth?)
+      end
+
+      def test_click_option_button_needs_the_mouse_released_on_the_button
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+
+        click(tool, option_position(tool, :radius), option_position(tool, :distance))
+        click(tool, option_position(tool, :segmented), button_position(tool, Y))
+
+        assert_equal('angle', SETTINGS.bend_input_mode)
+        assert(bender_of(tool).segmented)
+        assert_bend(tool, instance, X, 0)
+      end
+
+      def test_double_click_option_button_is_two_clicks_and_doesnt_commit
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bend_quarter_circle_away(tool)
+        click(tool, option_position(tool, :segmented))
+
+        double_click(tool, option_position(tool, :segmented))
+
+        refute(bender_of(tool).segmented)
+        assert_quarter_circle_away(tool)
+        assert_same_points(solid_corners(X), local_positions(instance))
+      end
+
+      def test_option_buttons_keep_what_they_are_set_to_when_choosing_another_axis
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        click(tool, option_position(tool, :segmented))
+
+        press(tool, VK_LEFT)
+
+        assert_bend(tool, instance, Y, 0)
+        refute(bender_of(tool).segmented)
+      end
+
       def test_click_bounds_edge_selects_the_axis_it_runs_along
         instance = create_solid(X)
         look_at(instance)
@@ -927,6 +1047,34 @@ module TT::Plugins::TrueBend
         assert_equal('Bend along the green axis (Left Arrow)', tooltip)
       end
 
+
+      def test_draw_shows_what_an_option_button_does_in_the_tooltip
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 5
+        view = Sketchup.active_model.active_view
+        without_user_feedback {
+          tool.onMouseMove(0, *option_position(tool, :radius), view)
+        }
+
+        tooltip = tooltip_after_draw(tool)
+
+        assert_equal('Type the radius of the bend (500mmr)', tooltip)
+      end
+
+      def test_draw_says_why_the_soft_smooth_button_is_unavailable
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        click(tool, option_position(tool, :segmented))
+        view = Sketchup.active_model.active_view
+        without_user_feedback {
+          tool.onMouseMove(0, *option_position(tool, :soft_smooth), view)
+        }
+
+        tooltip = tooltip_after_draw(tool)
+
+        assert_equal(TrueBendOptions::SOFT_SMOOTH_UNAVAILABLE, tooltip)
+      end
 
       def test_drag_handle_bends_towards_the_front
         instance = create_solid(X)
@@ -1315,6 +1463,20 @@ module TT::Plugins::TrueBend
         type(second, '45deg')
 
         assert_equal('angle', SETTINGS.bend_input_mode)
+      end
+
+      def test_measurements_box_shows_a_positive_radius_for_a_negative_angle
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '-45')
+        values = []
+
+        Sketchup.stub(:vcb_value=, ->(value) { values << value }) {
+          click(tool, option_position(tool, :radius))
+        }
+
+        assert_operator(values.last.to_f, :>, 0)
       end
 
       def test_on_user_text_sets_the_number_of_segments
