@@ -9,7 +9,7 @@ source 'https://rubygems.org'
 IS_CI_ENVIRONMENT = ENV.key?('CI')
 
 group :development do
-  gem 'rubyzip', '~> 1.3'        # Skippy task
+  gem 'rubyzip', '~> 3.4'        # Skippy task
   gem 'sketchup-api-stubs'       # VSCode SketchUp API insight
   gem 'skippy', '~> 0.5.1.a'
   gem 'solargraph'               # VSCode IDE support
