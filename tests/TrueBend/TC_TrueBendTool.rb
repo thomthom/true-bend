@@ -67,13 +67,32 @@ module TT::Plugins::TrueBend
       end
 
       def setup
+        isolate_settings
         start_with_empty_model
         @beeps = 0
         @messages = []
       end
 
       def teardown
-        # ...
+        restore_settings
+      end
+
+
+      # Keeps the tests from writing to the user's preferences, and starts each
+      # test from the default tool options.
+      def isolate_settings
+        @settings_cache = SETTINGS.instance_variable_get(:@cache).dup
+        SETTINGS.define_singleton_method(:write) { |key, value| @cache[key] = value }
+        SETTINGS.bend_input_mode = 'angle'
+        SETTINGS.bend_segmented = true
+        SETTINGS.bend_soft_smooth = true
+      end
+
+      def restore_settings
+        return unless @settings_cache
+
+        SETTINGS.singleton_class.send(:remove_method, :write)
+        SETTINGS.instance_variable_set(:@cache, @settings_cache)
       end
 
 
@@ -633,6 +652,24 @@ module TT::Plugins::TrueBend
         assert(bender.concave?)
       end
 
+      def test_on_key_down_keeps_a_radius_that_was_typed
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bend_quarter_circle_away(tool)
+        type(tool, '50"r')
+        assert_in_delta(50.0, bender_of(tool).radius.to_f, TOLERANCE)
+
+        press(tool, VK_LEFT)
+        assert_bend(tool, instance, Y, 0)
+        assert_in_delta(50.0, bender_of(tool).radius.to_f, TOLERANCE, 'Another axis')
+        assert(bender_of(tool).convex?, 'Another axis')
+
+        press(tool, VK_LEFT)
+        assert_bend(tool, instance, Y, 1)
+        assert_in_delta(50.0, bender_of(tool).radius.to_f, TOLERANCE, 'Other direction')
+        assert(bender_of(tool).convex?, 'Other direction')
+      end
+
       def test_on_key_down_keeps_the_angle_once_an_angle_is_typed_after_a_distance
         instance = create_solid(X)
         tool = TrueBendTool.new(instance)
@@ -1095,6 +1132,189 @@ module TT::Plugins::TrueBend
         bender = bender_of(tool)
         assert_in_delta(360.degrees, bender.angle, 1.0e-9)
         assert_in_delta(100.0 / Math::PI, bender.distance.to_f, TOLERANCE)
+      end
+
+      def test_on_user_text_radius_sets_the_radius
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+
+        type(tool, '50"r')
+
+        bender = bender_of(tool)
+        assert_in_delta(50.0, bender.radius.to_f, TOLERANCE)
+        # angle = arc length / radius
+        assert_in_delta(100.0 / 50.0, bender.angle, 1.0e-9)
+        assert(bender.concave?)
+        assert_equal(0, @beeps)
+        assert_empty(@messages)
+        assert_in_delta(bender.distance.to_f, handle_of(tool).distance.to_f, TOLERANCE, 'Handle')
+      end
+
+      def test_on_user_text_plain_number_after_a_radius_is_a_radius
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '50"r')
+
+        type(tool, '40')
+
+        # A unitless number is in model units. In small units it is below the
+        # minimum radius and gets clamped to a full circle.
+        expected = ['40'.to_l.to_f, 100.0 / 360.degrees].max
+        assert_in_delta(expected, bender_of(tool).radius.to_f, TOLERANCE)
+      end
+
+      def test_on_user_text_length_after_a_radius_goes_back_to_distances
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '50"r')
+
+        type(tool, '2"')
+
+        assert_in_delta(2.0, bender_of(tool).distance.to_f, TOLERANCE)
+      end
+
+      def test_on_user_text_degrees_after_a_radius_goes_back_to_angles
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '50"r')
+        type(tool, '30deg')
+
+        type(tool, '45')
+
+        assert_in_delta(45.degrees, bender_of(tool).angle, 1.0e-9)
+      end
+
+      def test_on_user_text_negative_radius_bends_the_other_way
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+
+        type(tool, '-50"r')
+
+        bender = bender_of(tool)
+        assert_in_delta(50.0, bender.radius.to_f, TOLERANCE)
+        assert(bender.convex?)
+      end
+
+      def test_on_user_text_radius_stops_at_a_full_circle
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+
+        type(tool, '5"r')
+
+        bender = bender_of(tool)
+        assert_in_delta(360.degrees, bender.angle, 1.0e-9)
+        assert_in_delta(100.0 / 360.degrees, bender.radius.to_f, TOLERANCE)
+      end
+
+      def test_on_user_text_refuses_a_radius_of_zero
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+
+        type(tool, '0"r')
+
+        assert_equal(1, @beeps)
+        assert_in_delta(1.0, bender_of(tool).distance.to_f, TOLERANCE)
+      end
+
+      def test_on_user_text_reports_a_radius_it_cannot_read
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+
+        type(tool, 'two"r')
+
+        assert_equal(1, @messages.size)
+        assert_in_delta(1.0, bender_of(tool).distance.to_f, TOLERANCE)
+      end
+
+      def test_on_user_text_remembers_a_distance_for_the_next_use_of_the_tool
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '2"')
+
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '3')
+
+        bender = bender_of(tool)
+        expected = ['3'.to_l.to_f, bender.max_bend_distance.to_f].min
+        assert_in_delta(expected, bender.distance.to_f, TOLERANCE)
+        assert_equal('distance', SETTINGS.bend_input_mode)
+      end
+
+      def test_on_user_text_remembers_a_radius_for_the_next_use_of_the_tool
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '50"r')
+
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '40')
+
+        expected = ['40'.to_l.to_f, 100.0 / 360.degrees].max
+        assert_in_delta(expected, bender_of(tool).radius.to_f, TOLERANCE)
+        assert_equal('radius', SETTINGS.bend_input_mode)
+      end
+
+      def test_on_user_text_remembers_angles_for_the_next_use_of_the_tool
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '2"')
+        type(tool, '30deg')
+
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+        type(tool, '45')
+
+        assert_in_delta(45.degrees, bender_of(tool).angle, 1.0e-9)
+        assert_equal('angle', SETTINGS.bend_input_mode)
+      end
+
+      def test_on_user_text_is_an_angle_when_what_is_remembered_makes_no_sense
+        SETTINGS.bend_input_mode = 'nonsense'
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+
+        type(tool, '45')
+
+        assert_in_delta(45.degrees, bender_of(tool).angle, 1.0e-9)
+      end
+
+      def test_on_user_text_invalid_input_keeps_the_input_mode
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 1
+
+        type(tool, '45d')
+
+        assert_equal(1, @messages.size)
+        assert_equal('angle', SETTINGS.bend_input_mode)
+        type(tool, '60')
+        assert_in_delta(60.degrees, bender_of(tool).angle, 1.0e-9)
+      end
+
+      def test_on_user_text_persists_the_input_mode_typed_last_in_any_tool
+        instance = create_solid(X)
+        first = TrueBendTool.new(instance)
+        second = TrueBendTool.new(instance)
+        bender_of(first).distance = 1
+        bender_of(second).distance = 1
+        type(first, '50"r')
+
+        type(second, '45deg')
+
+        assert_equal('angle', SETTINGS.bend_input_mode)
       end
 
       def test_on_user_text_sets_the_number_of_segments

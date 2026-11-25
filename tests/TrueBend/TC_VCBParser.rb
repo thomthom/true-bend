@@ -30,6 +30,7 @@ module TT::Plugins::TrueBend
         refute(VCBParser.new('45').degrees?)
         refute(VCBParser.new('45s').degrees?)
         refute(VCBParser.new('45mm').degrees?)
+        refute(VCBParser.new('45r').degrees?)
       end
 
       def test_degrees
@@ -65,6 +66,7 @@ module TT::Plugins::TrueBend
         assert(VCBParser.new('45deg').modifier?)
         assert(VCBParser.new('12s').modifier?)
         assert(VCBParser.new('10mm').modifier?)
+        assert(VCBParser.new('10mmr').modifier?)
         refute(VCBParser.new('10').modifier?)
         refute(VCBParser.new('-10').modifier?)
       end
@@ -78,10 +80,46 @@ module TT::Plugins::TrueBend
         refute(VCBParser.new('').numeric?)
       end
 
+      def test_radius_query
+        assert(VCBParser.new('254mmr').radius?)
+        assert(VCBParser.new('10r').radius?)
+        refute(VCBParser.new('10').radius?)
+        refute(VCBParser.new('10mm').radius?)
+        refute(VCBParser.new('10deg').radius?)
+        refute(VCBParser.new('10s').radius?)
+      end
+
+      def test_radius
+        result = VCBParser.new('254mmr').radius
+
+        assert_kind_of(Validator, result)
+        assert_kind_of(Length, result.value)
+        assert_in_delta(10.0, result.value.to_f, 1.0e-9)
+      end
+
+      def test_radius_with_whitespace_before_the_radius_notation
+        assert_in_delta(10.0, VCBParser.new('254mm r').radius.value.to_f, 1.0e-9)
+      end
+
+      def test_radius_without_the_radius_notation
+        assert_in_delta(10.0, VCBParser.new('254mm').radius.value.to_f, 1.0e-9)
+      end
+
+      def test_radius_negative
+        assert_in_delta(-10.0, VCBParser.new('-10"r').radius.value.to_f, 1.0e-9)
+      end
+
+      def test_radius_invalid
+        parser = VCBParser.new('nonsenser')
+
+        assert_raises(VCBParser::InputError) { parser.radius }
+      end
+
       def test_segments_query
         assert(VCBParser.new('12s').segments?)
         refute(VCBParser.new('12').segments?)
         refute(VCBParser.new('12deg').segments?)
+        refute(VCBParser.new('12r').segments?)
       end
 
       def test_segments

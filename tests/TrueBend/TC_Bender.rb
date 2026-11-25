@@ -509,6 +509,105 @@ module TT::Plugins::TrueBend
         assert(bender.convex?)
       end
 
+      # @param [Float] length The length of the reference segment.
+      # @param [Float] radius
+      # @return [Float] The bend distance that gives the radius.
+      def distance_for_radius(length, radius)
+        (length / Math::PI) * (length / radius) / 360.degrees
+      end
+
+      def test_set_radius_bends_towards_the_normal_when_there_is_no_bend
+        bender = create_bender
+
+        bender.radius = 50
+
+        # angle = arc length / radius
+        assert_in_delta(100.0 / 50.0, bender.angle, 1.0e-9)
+        assert_in_delta(50.0, bender.radius.to_f, TOLERANCE)
+        assert_in_delta(100.0, bender.arc_length.to_f, TOLERANCE)
+        distance = distance_for_radius(100.0, 50.0)
+        assert_vector(Geom::Vector3d.new(0, -distance, 0), bender.direction)
+        assert(bender.concave?)
+      end
+
+      def test_set_radius_negative_bends_away_from_the_normal
+        bender = create_bender
+
+        bender.radius = -50
+
+        assert_in_delta(50.0, bender.radius.to_f, TOLERANCE)
+        distance = distance_for_radius(100.0, 50.0)
+        assert_vector(Geom::Vector3d.new(0, distance, 0), bender.direction)
+        assert(bender.convex?)
+      end
+
+      def test_set_radius_keeps_the_direction_of_the_bend
+        bender = create_bender
+        bender.bend(Geom::Vector3d.new(0, 2, 0))
+
+        bender.radius = 50
+
+        assert_in_delta(50.0, bender.radius.to_f, TOLERANCE)
+        assert(bender.convex?)
+      end
+
+      def test_set_radius_stops_at_a_full_circle
+        bender = create_bender
+
+        bender.radius = 5
+
+        assert_in_delta(360.degrees, bender.angle, 1.0e-9)
+        assert_in_delta(100.0 / 360.degrees, bender.radius.to_f, TOLERANCE)
+      end
+
+      def test_match_radius_keeps_the_radius_for_a_segment_of_another_length
+        other = create_bender
+        other.radius = -50
+        bender = create_short_bender
+
+        bender.match_radius(other)
+
+        assert_in_delta(50.0, bender.radius.to_f, TOLERANCE)
+        assert_in_delta(40.0 / 50.0, bender.angle, 1.0e-9)
+        distance = distance_for_radius(40.0, 50.0)
+        assert_vector(Geom::Vector3d.new(-distance, 0, 0), bender.direction)
+        assert(bender.convex?)
+      end
+
+      def test_match_radius_bends_towards_the_normal_like_the_other
+        other = create_bender
+        other.radius = 50
+        bender = create_short_bender
+
+        bender.match_radius(other)
+
+        distance = distance_for_radius(40.0, 50.0)
+        assert_vector(Geom::Vector3d.new(distance, 0, 0), bender.direction)
+        assert(bender.concave?)
+      end
+
+      def test_match_radius_stops_at_a_full_circle
+        # Valid for the short segment, too small for the long one.
+        other = create_short_bender
+        other.radius = 7
+        bender = create_bender
+
+        bender.match_radius(other)
+
+        assert_in_delta(360.degrees, bender.angle, 1.0e-9)
+        assert_in_delta(100.0 / 360.degrees, bender.radius.to_f, TOLERANCE)
+      end
+
+      def test_match_radius_without_a_bend_resets
+        bender = create_bender
+        bender.bend(Geom::Vector3d.new(0, -5, 0))
+
+        bender.match_radius(create_bender)
+
+        refute(bender.bending?)
+        refute(bender.can_bend?)
+      end
+
     end # class
   end # module
 end # module

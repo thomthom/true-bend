@@ -36,13 +36,16 @@ module TT::Plugins::TrueBend
     # The edges of the bounds that stand for the axis under the cursor.
     HOVER_EDGE_WIDTH = 4
 
+    # How VCB input without a unit suffix is interpreted.
+    INPUT_MODES = [:angle, :distance, :radius].freeze
+
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     def initialize(instance)
       @instance = instance
       # The model the instance is in. It is not the active model when several
       # are open and the user is working in another.
       @model = instance.model
-      @bend_by_distance = false
+      @input_mode = stored_input_mode
       @boundingbox = BoundingBoxWidget.new(instance)
       @axis_buttons = AxisButtons.new
 
@@ -139,29 +142,20 @@ module TT::Plugins::TrueBend
     def onUserText(text, view)
       view = HighDpiView.new(view)
       input = VCBParser.new(text)
-      if input.modifier?
-        if input.segments?
-          @bender.subdivisions = input.segments.min(2).value
-          return
-        else
-          # Assuming that if it's not degrees it will be a length unit.
-          @bend_by_distance = !input.degrees?
-        end
+      if input.modifier? && input.segments?
+        @bender.subdivisions = input.segments.min(2).value
+        return
       end
+      mode = input.modifier? ? typed_input_mode(input) : @input_mode
+      # Parse before switching mode, so invalid input doesn't change the mode.
+      value = typed_value(input, mode)
+      self.input_mode = mode
       # Adjust the last value.
       unless @bender.can_bend?
         return UI.beep
       end
 
-      if bend_by_distance?
-        # NOTE: This length is relative to the segment length.
-        #       Negative values flips the direction.
-        #       Values larger than segment length is capped.
-        @bender.distance = input.length.value
-      else
-        @bender.angle = input.degrees.value
-      end
-      @manipulator.distance = @bender.distance
+      bend_by(mode, value)
     rescue VCBParser::InputError, Validator::ValidationError => error
       # TODO: Don't emit error message directly to user.
       UI.messagebox(error.message)
@@ -382,9 +376,8 @@ module TT::Plugins::TrueBend
       select_bend(options.first)
     end
 
-    # Sets which of the directions on offer to bend the instance in. The bend is
-    # kept by the value the Measurements box is showing: its angle, or its
-    # distance when a distance was typed.
+    # Selects one of the available bend directions. The current bend is
+    # preserved by angle, distance or radius, depending on the input mode.
     #
     # @param [BendAxes] axes One of the keys in `@handles`.
     def select_bend(axes)
@@ -401,8 +394,11 @@ module TT::Plugins::TrueBend
       return if previous.nil?
 
       @bender.subdivisions = previous.subdivisions
-      if bend_by_distance?
+      case @input_mode
+      when :distance
         @bender.match_distance(previous)
+      when :radius
+        @bender.match_radius(previous)
       else
         @bender.match_angle(previous)
       end
@@ -439,8 +435,63 @@ module TT::Plugins::TrueBend
       view.invalidate
     end
 
-    def bend_by_distance?
-      @bend_by_distance
+    # @return [Symbol] The persisted input mode, or `:angle` if it is invalid.
+    def stored_input_mode
+      mode = SETTINGS.bend_input_mode.to_s.to_sym
+      INPUT_MODES.include?(mode) ? mode : :angle
+    end
+
+    # Sets the input mode and persists it.
+    #
+    # @param [Symbol] mode One of `INPUT_MODES`.
+    def input_mode=(mode)
+      @input_mode = mode
+      # Another tool instance might have changed the persisted mode.
+      return if SETTINGS.bend_input_mode == mode.to_s
+
+      SETTINGS.bend_input_mode = mode.to_s
+    end
+
+    # @param [VCBParser] input Input with a unit suffix.
+    # @return [Symbol] The input mode the suffix selects.
+    def typed_input_mode(input)
+      return :angle if input.degrees?
+      return :radius if input.radius?
+
+      # Any other suffix is assumed to be a length unit.
+      :distance
+    end
+
+    # @param [VCBParser] input
+    # @param [Symbol] mode One of `INPUT_MODES`.
+    # @return [Numeric] Radians for `:angle`, otherwise a `Length`.
+    #
+    # @raise [VCBParser::InputError]
+    def typed_value(input, mode)
+      case mode
+      when :distance then input.length.value
+      when :radius then input.radius.value
+      else input.degrees.value
+      end
+    end
+
+    # @param [Symbol] mode One of `INPUT_MODES`.
+    # @param [Numeric] value See {#typed_value}.
+    def bend_by(mode, value)
+      case mode
+      when :distance
+        # NOTE: This length is relative to the segment length.
+        #       Negative values flips the direction.
+        #       Values larger than segment length is capped.
+        @bender.distance = value
+      when :radius
+        return UI.beep if value.to_f == 0.0
+
+        @bender.radius = value
+      else
+        @bender.angle = value
+      end
+      @manipulator.distance = @bender.distance
     end
 
     def update_ui
@@ -451,9 +502,15 @@ module TT::Plugins::TrueBend
                                'Click an axis button or an edge of the bounding box, ' \
                                'or use the arrow keys, to bend along another axis.'
       end
-      if bend_by_distance?
+      case @input_mode
+      when :distance
         Sketchup.vcb_label = 'Distance'
         Sketchup.vcb_value = @bender.distance
+      when :radius
+        Sketchup.vcb_label = 'Radius'
+        # The radius is infinite when there is no bend, and negative for a
+        # negative angle.
+        Sketchup.vcb_value = @bender.bending? ? @bender.radius.abs.to_l : ''
       else
         Sketchup.vcb_label = 'Angle'
         Sketchup.vcb_value = Sketchup.format_angle(@bender.angle)

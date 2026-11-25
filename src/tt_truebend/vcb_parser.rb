@@ -43,6 +43,23 @@ module TT::Plugins::TrueBend
       !!@text.match(/^[0-9.,]+$/)
     end
 
+    # Checks if the input is radius notation, like the native arc tools use.
+    def radius?
+      @text.end_with?('r')
+    end
+
+    # Accepts the length with or without the "r" suffix.
+    #
+    # @return [Validator]
+    #
+    # @raise [InputError]
+    def radius
+      # `String#to_l` rejects trailing whitespace after a unit.
+      Validator.new(@text.chomp('r').rstrip.to_l)
+    rescue ArgumentError => error
+      raise InputError, error.message
+    end
+
     # Checks if the input is segments notation.
     def segments?
       @text.end_with?('s')

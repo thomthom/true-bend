@@ -132,6 +132,19 @@ module TT::Plugins::TrueBend
       bend(direction)
     end
 
+    # Copies the radius and the bend side (concave or convex) of another bender.
+    # The bend is clamped to a full circle.
+    #
+    # @param [Bender] other
+    # @return [nil]
+    def match_radius(other)
+      return reset unless other.bending? && other.can_bend?
+
+      @direction = other.concave? ? @normal.clone : @normal.reverse
+      self.radius = other.radius.to_f.abs
+      nil
+    end
+
     # @return [Sketchup::ComponentInstance, Sketchup::Group]
     def commit
       instance = ensure_groups_are_uniqe(@instance)
@@ -192,6 +205,17 @@ module TT::Plugins::TrueBend
     # @return [Length]
     def radius
       (@segment.length / angle).to_l
+    end
+
+    # A negative radius flips the bend direction. The bend is clamped to a full
+    # circle.
+    #
+    # @param [Length] value
+    def radius=(value)
+      # Arc length is preserved: length = radius * angle
+      angle = [@segment.length / value.to_f.abs, TAU].min
+      distance = max_bend_distance * (angle / TAU)
+      self.distance = value < 0 ? -distance : distance
     end
 
     # @return [Length]

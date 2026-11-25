@@ -11,6 +11,8 @@ module TT::Plugins::TrueBend
 
     define :bend_segmented, true
     define :bend_soft_smooth, true
+    # 'angle', 'distance' or 'radius'.
+    define :bend_input_mode, 'angle'
 
     define :dpi_scale_factor, 1.0
 
