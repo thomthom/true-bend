@@ -587,7 +587,8 @@ module TT::Plugins::TrueBend
       end
 
       def test_match_radius_stops_at_a_full_circle
-        # Valid for the short segment, too small for the long one.
+        # This radius is valid for the short segment and too small for the long
+        # one.
         other = create_short_bender
         other.radius = 7
         bender = create_bender

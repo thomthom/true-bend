@@ -13,7 +13,8 @@ module TT::Plugins::TrueBend
     LEFT = AxisButtons::LEFT + (3 * (SIZE + SPACING)) - SPACING + GROUP_SPACING
     TOP = AxisButtons::TOP
 
-    # VCB input modes, then bend options.
+    # The first group selects the VCB input mode. The second contains the bend
+    # options.
     GROUPS = [
       [:angle, :distance, :radius],
       [:segmented, :soft_smooth],
@@ -42,8 +43,8 @@ module TT::Plugins::TrueBend
       }
     end
 
-    # Button icons as polylines: `[stipple, points]`. Points are relative to
-    # the top left corner of the button.
+    # Each button icon is a list of polylines in the form `[stipple, points]`.
+    # The points are relative to the top left corner of the button.
     GLYPHS = {
       angle:       [
         [STIPPLE_SOLID, [[19, 19], [5, 19], [14, 5]]],
@@ -61,20 +62,20 @@ module TT::Plugins::TrueBend
       segmented:   [
         [STIPPLE_SOLID, [[3, 18], [8, 9], [16, 9], [21, 18]]],
       ],
-      # A face with a soft (dashed) edge across it.
+      # The icon is a face with a soft (dashed) edge across it.
       soft_smooth: [
         [STIPPLE_SOLID, [[4, 6], [20, 6], [20, 18], [4, 18], [4, 6]]],
         [STIPPLE_SHORT_DASH, [[12, 6], [12, 18]]],
       ],
     }.freeze
 
-    # @return [Array<Symbol>] Options drawn as selected.
+    # @return [Array<Symbol>] The options drawn as selected.
     attr_accessor :selected
 
-    # @return [Symbol, nil] Option drawn as hovered.
+    # @return [Symbol, nil] The option drawn as hovered.
     attr_accessor :hovered
 
-    # @return [Array<Symbol>] Options drawn as disabled.
+    # @return [Array<Symbol>] The options drawn as disabled.
     attr_accessor :disabled
 
     def initialize

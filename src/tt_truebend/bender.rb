@@ -212,7 +212,7 @@ module TT::Plugins::TrueBend
     #
     # @param [Length] value
     def radius=(value)
-      # Arc length is preserved: length = radius * angle
+      # The arc length is preserved: length = radius * angle
       angle = [@segment.length / value.to_f.abs, TAU].min
       distance = max_bend_distance * (angle / TAU)
       self.distance = value < 0 ? -distance : distance

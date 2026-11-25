@@ -38,7 +38,8 @@ module TT::Plugins::TrueBend
     # The edges of the bounds that stand for the axis under the cursor.
     HOVER_EDGE_WIDTH = 4
 
-    # How VCB input without a unit suffix is interpreted.
+    # The input mode determines how VCB input without a unit suffix is
+    # interpreted.
     INPUT_MODES = [:angle, :distance, :radius].freeze
 
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
@@ -60,7 +61,7 @@ module TT::Plugins::TrueBend
       @manipulator = nil
       @bender = nil
       @cached_direction = nil
-      # Hover and press state of the viewport controls.
+      # These track the hover and press state of the viewport controls.
       @hover_axis = nil
       @hover_option = nil
       @pressed_control = nil
@@ -150,7 +151,7 @@ module TT::Plugins::TrueBend
         return
       end
       mode = input.modifier? ? typed_input_mode(input) : @input_mode
-      # Parse before switching mode, so invalid input doesn't change the mode.
+      # Parse before switching the mode, so that invalid input doesn't change it.
       value = typed_value(input, mode)
       self.input_mode = mode
       # Adjust the last value.

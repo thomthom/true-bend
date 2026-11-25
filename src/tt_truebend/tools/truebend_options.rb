@@ -2,11 +2,11 @@ require 'tt_truebend/gl/option_buttons'
 require 'tt_truebend/app_settings'
 
 module TT::Plugins::TrueBend
-  # Option handling for `TrueBendTool`, shared by the context menu and the
-  # viewport buttons.
+  # Handles the options of `TrueBendTool`. The context menu and the viewport
+  # buttons both use it.
   module TrueBendOptions
 
-    # Tooltips for the option buttons.
+    # These are the tooltips for the option buttons.
     OPTION_HINTS = {
       angle:       'Type the angle of the bend (45deg)',
       distance:    'Type the distance of the bend (500mm)',
@@ -15,7 +15,7 @@ module TT::Plugins::TrueBend
       soft_smooth: 'Soften and smooth the edges between the segments',
     }.freeze
 
-    # Tooltip for the soften/smooth button while it is disabled.
+    # This is the tooltip for the soften/smooth button while it is disabled.
     SOFT_SMOOTH_UNAVAILABLE = 'The edges of a bend that is not segmented are ' \
                               'always soft and smooth'.freeze
 
