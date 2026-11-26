@@ -2,6 +2,9 @@ require 'tt_truebend/constants/view'
 require 'tt_truebend/gl/bender_drawer'
 require 'tt_truebend/gl/boundingbox'
 require 'tt_truebend/gl/drawing_helper'
+require 'tt_truebend/gl/face_colors'
+require 'tt_truebend/gl/face_drawer'
+require 'tt_truebend/gl/face_triangulator'
 require 'tt_truebend/gl/grid'
 require 'tt_truebend/gl/slicer'
 require 'tt_truebend/gl/subdivided_segment'
@@ -17,6 +20,7 @@ module TT::Plugins::TrueBend
     include BenderDrawer
     include DrawingHelper
     include EdgeHelper
+    include FaceDrawer
     include InstanceHelper
     include ViewConstants
 
@@ -29,6 +33,11 @@ module TT::Plugins::TrueBend
     # radians, and decreases beyond it. It is the solution of
     # tan(angle / 4) = angle / 2 within a full circle.
     MAX_SAGITTA_ANGLE = 4.662244740828845
+
+    # The bounds of the bent instance are found by bending the bounding box of
+    # the instance. The box is divided into this many slices of equal length
+    # along the reference segment, and the corners of the slices are bent.
+    BOUNDS_SLICES = 48
 
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
     # @param [Segment] segment The reference segment for the bend.
@@ -292,6 +301,7 @@ module TT::Plugins::TrueBend
     def bounds
       bounds = Geom::BoundingBox.new
       bounds.add(@segmenter.bounds)
+      bounds.add(bent_bounds) if bending?
       bounds
     end
 
@@ -359,6 +369,37 @@ module TT::Plugins::TrueBend
                      "Radius: #{radius}\n"\
                      "Bend: #{distance}\n"\
                      "Sagitta: #{sagitta.abs.to_l}"
+    end
+
+    # Draws the faces of the instance the way the bend would leave them. Call
+    # it after everything else that is drawn in model space, because anything
+    # drawn afterwards is hidden where it is behind the faces.
+    #
+    # @param [Sketchup::View] view
+    def draw_faces(view)
+      return unless bending? && FaceDrawer.supported?
+
+      colors = FaceColors.new(view.model, SETTINGS.debug_face_opacity)
+      return unless colors.fill?
+
+      draw_triangles(view, bent_triangles(colors), SETTINGS.debug_draw_see_through_faces?)
+    end
+
+    # The visible faces of the instance, cut and moved the way the bend would
+    # cut and move them.
+    #
+    # @param [FaceColors] colors
+    # @return [Array<Array>] See {PolarProjection#project_triangles}. The value
+    #   passed through with each triangle is the colours of its front and back.
+    def bent_triangles(colors)
+      to_segment_space = world_to_segment_space
+      cuts = @segmenter.points.map { |point| point.transform(to_segment_space).x.to_f }.sort
+      triangulator = FaceTriangulator.new(colors)
+      triangles = triangulator.slice(triangulator.triangles(@instance, to_segment_space), cuts)
+      # The edges the bend adds stay hard only in a segmented bend that is not
+      # softened.
+      flat = @segmented && !@soft_smooth
+      polar_projection.project_triangles(triangles, convex?, segment_angle, flat: flat)
     end
 
     private
@@ -488,6 +529,33 @@ module TT::Plugins::TrueBend
       grid.x_subdivs = subdivisions
       grid.transformation = to_world * offset
       grid
+    end
+
+    # Bounds that enclose the instance the way the bend would leave it. They
+    # are those of the bent bounding box of the instance, so they can be larger
+    # than the bent geometry.
+    #
+    # @return [Geom::BoundingBox]
+    def bent_bounds
+      to_segment_space = world_to_segment_space * @instance.transformation
+      box = definition(@instance).bounds
+      corners = Array.new(8) { |i| box.corner(i).transform(to_segment_space) }
+      x_min, x_max = corners.map(&:x).minmax
+      y_range = corners.map(&:y).minmax
+      z_range = corners.map(&:z).minmax
+      slice_length = (x_max - x_min).to_f / BOUNDS_SLICES
+      points = (0..BOUNDS_SLICES).flat_map { |i|
+        x = x_min + (slice_length * i)
+        y_range.product(z_range).map { |y, z| Geom::Point3d.new(x, y, z) }
+      }
+      bounds = Geom::BoundingBox.new
+      bounds.add(polar_projection.project(points, convex?, nil))
+      # Within a slice the bend follows a circle, which reaches further out
+      # than the straight line between the corners of the slice.
+      reach = radius.to_f + y_range.map(&:abs).max
+      margin = reach * (1.0 - Math.cos(slice_length / radius.to_f / 2.0))
+      growth = Geom::Vector3d.new(margin, margin, margin)
+      bounds.add(bounds.min - growth, bounds.max + growth)
     end
 
     # Creates a transformation that convert world coordinates to a local

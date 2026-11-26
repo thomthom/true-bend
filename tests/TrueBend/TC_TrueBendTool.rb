@@ -110,6 +110,8 @@ module TT::Plugins::TrueBend
         SETTINGS.debug_draw_global_mesh = false
         SETTINGS.debug_draw_local_mesh = false
         SETTINGS.debug_draw_mesh_points = false
+        SETTINGS.debug_draw_see_through_faces = false
+        SETTINGS.debug_face_opacity = 0.5
       end
 
       def restore_settings
@@ -1095,6 +1097,231 @@ module TT::Plugins::TrueBend
         }
       end
 
+      # SketchUp clips what the tool draws outside of these extents.
+      def test_get_extents_covers_the_bent_faces
+        skip('The face preview needs SketchUp 2020.') unless FaceDrawer.supported?
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 5
+
+        extents = without_user_feedback { tool.getExtents }
+
+        points = bender_of(tool).bent_triangles(FaceColors.new(instance.model)).flat_map(&:first)
+        refute_empty(points)
+        points.each { |point|
+          assert(extents.contains?(point), "The extents don't contain #{point.to_a.inspect}")
+        }
+      end
+
+      # Has the tool draw, in a style that fills faces with their materials.
+      #
+      # @param [TrueBendTool] tool
+      # @param [Integer] render_mode The value of the "RenderMode" rendering
+      #   option to draw with.
+      # @return [Array<Array(Symbol, Array, Hash)>] See
+      #   {RecordingViewSpy#calls}.
+      def drawing_calls(tool, render_mode = 2)
+        skip('Needs vertex normals.') unless FaceDrawer.supported?
+        options = Sketchup.active_model.rendering_options
+        original_mode = options['RenderMode']
+        options['RenderMode'] = render_mode
+        view = RecordingViewSpy.new(Sketchup.active_model.active_view)
+        without_user_feedback { tool.draw(view) }
+        view.calls
+      ensure
+        options['RenderMode'] = original_mode if original_mode
+      end
+
+      # @param [Array<Array(Symbol, Array, Hash)>] calls
+      # @return [Array<Array>] The colour, the points and the normals, if any,
+      #   of each call that draws triangles.
+      def drawn_triangles(calls)
+        color = nil
+        calls.each_with_object([]) { |(name, arguments, options), triangles|
+          color = arguments[0] if name == :drawing_color=
+          next unless name == :draw && arguments[0] == GL_TRIANGLES
+
+          triangles << [color, arguments[1], options[:normals]]
+        }
+      end
+
+      def test_draw_shades_the_bent_faces_half_transparent
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 5
+
+        triangles = drawn_triangles(drawing_calls(tool))
+
+        shaded = triangles.select { |_, _, normals| normals }
+        refute_empty(shaded)
+        shaded.each { |color, points, normals|
+          assert_equal(127, color.alpha, 'Opacity')
+          assert_equal(points.size, normals.size, 'A normal for each point')
+          assert_equal(0, points.size % 3, 'Three points for each triangle')
+        }
+        assert_equal(bender_of(tool).bent_triangles(FaceColors.new(instance.model)).size * 3,
+                     shaded.inject(0) { |sum, (_, points, _)| sum + points.size })
+      end
+
+      def test_draw_draws_no_faces_without_a_bend
+        tool = TrueBendTool.new(create_solid(X))
+
+        assert_empty(drawn_triangles(drawing_calls(tool)))
+      end
+
+      def test_draw_draws_no_faces_in_a_wireframe_style
+        tool = TrueBendTool.new(create_solid(X))
+        bender_of(tool).distance = 5
+
+        assert_empty(drawn_triangles(drawing_calls(tool, FaceColors::WIREFRAME)))
+      end
+
+      # Lines drawn after the faces would be hidden where they are behind the
+      # faces. The buttons are not in model space.
+      def test_draw_draws_the_faces_last_in_model_space
+        tool = TrueBendTool.new(create_solid(X))
+        bender_of(tool).distance = 5
+
+        calls = drawing_calls(tool)
+
+        first = calls.index { |name, arguments, _| name == :draw && arguments[0] == GL_TRIANGLES }
+        refute_nil(first)
+        after = calls[first..-1].select { |name, _, _| name == :draw }
+        assert_equal([GL_TRIANGLES], after.map { |_, arguments, _| arguments[0] }.uniq)
+        assert_includes(calls[first..-1].map(&:first), :draw2d, 'The buttons')
+      end
+
+      # The faces behind other faces fail the depth test, because the depth of
+      # all of them is drawn first, without a colour.
+      def test_draw_draws_the_depth_of_the_faces_before_the_faces
+        tool = TrueBendTool.new(create_solid(X))
+        bender_of(tool).distance = 5
+
+        triangles = drawn_triangles(drawing_calls(tool))
+
+        color, points, normals = triangles.first
+        assert_nil(normals, 'The depth is not shaded')
+        assert_equal(0, color.alpha, 'The depth has no colour')
+        shaded_points = triangles.drop(1).inject(0) { |sum, (_, shaded, _)| sum + shaded.size }
+        assert_equal(shaded_points, points.size)
+        assert(triangles.drop(1).all? { |_, _, shaded_normals| shaded_normals })
+      end
+
+      # A point keeps its position in the viewport only if it moves along its
+      # line of sight.
+      def test_draw_moves_the_depth_of_the_faces_half_a_pixel_away_from_the_camera
+        skip('The face preview needs SketchUp 2020.') unless FaceDrawer.supported?
+        instance = create_solid(X)
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 5
+        view = Sketchup.active_model.active_view
+        faces = bender_of(tool).bent_triangles(FaceColors.new(instance.model)).flat_map(&:first)
+        [false, true].each { |perspective|
+          look_at(instance)
+          view.camera.perspective = perspective
+          camera = view.camera
+
+          _, depth, = drawn_triangles(drawing_calls(tool)).first
+
+          assert_equal(faces.size, depth.size, "Perspective: #{perspective}")
+          faces.zip(depth) { |face_point, depth_point|
+            offset = face_point.vector_to(depth_point)
+            half_pixel = HighDpiView.new(view).pixels_to_model(1, face_point).to_f / 2.0
+            assert_in_delta(half_pixel, offset % camera.direction, half_pixel * 1.0e-6,
+                            "Perspective: #{perspective}")
+            line_of_sight = perspective ? camera.eye.vector_to(face_point) : camera.direction
+            assert_in_delta(0.0, offset.angle_between(line_of_sight), 1.0e-6,
+                            "Perspective: #{perspective}")
+          }
+        }
+      end
+
+      def test_draw_debug_setting_draws_the_faces_behind_other_faces
+        tool = TrueBendTool.new(create_solid(X))
+        bender_of(tool).distance = 5
+        SETTINGS.debug_draw_see_through_faces = true
+
+        triangles = drawn_triangles(drawing_calls(tool))
+
+        refute_empty(triangles)
+        assert(triangles.all? { |_, _, normals| normals }, 'The depth is not drawn first')
+      end
+
+      # @return [Sketchup::Group] The test solid, with every face red on the
+      #   outside of the solid and blue on the inside.
+      def create_two_sided_solid
+        instance = create_solid(X)
+        center = instance.definition.bounds.center
+        instance.entities.grep(Sketchup::Face) { |face|
+          face.reverse! if face.normal % center.vector_to(face.bounds.center) < 0.0
+          face.material = 'red'
+          face.back_material = 'blue'
+        }
+        instance
+      end
+
+      # A transparent face hides the faces behind it that are drawn after it,
+      # so the ones that face away from the camera are drawn first.
+      def test_draw_draws_the_faces_that_face_away_first_in_the_color_of_their_back
+        instance = create_two_sided_solid
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 5
+        # In a parallel projection the direction of the camera decides which
+        # side of a face it sees, not its position. This camera is lower than
+        # the top of the solid and looks slightly down, so it sees the top
+        # from above.
+        eye = instance.bounds.center.offset(Geom::Vector3d.new(0, -200, -15))
+        target = eye.offset(Geom::Vector3d.new(0, 200, -20))
+        view = Sketchup.active_model.active_view
+        [false, true].each { |perspective|
+          if perspective
+            look_at(instance)
+          else
+            view.camera = Sketchup::Camera.new(eye, target, Z_AXIS, false)
+          end
+          camera = view.camera
+
+          triangles = drawn_triangles(drawing_calls(tool))
+
+          shaded = triangles.select { |_, _, normals| normals }
+          colors = shaded.map { |color, _, _| color.to_a[0, 3] }
+          assert_equal([[0, 0, 255], [255, 0, 0]], colors, "Perspective: #{perspective}")
+          shaded.each { |color, points, _|
+            points.each_slice(3) { |a, b, c|
+              to_camera = perspective ? a.vector_to(camera.eye) : camera.direction.reverse
+              faces_camera = ((b - a) * (c - a)) % to_camera > 0.0
+              assert_equal(color.red == 255, faces_camera, "Perspective: #{perspective}")
+            }
+          }
+        }
+      end
+
+      def test_draw_draws_no_faces_with_a_fully_transparent_material
+        instance = create_solid(X)
+        instance.material = 'red'
+        instance.material.alpha = 0.0
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 5
+
+        triangles = drawn_triangles(drawing_calls(tool))
+
+        assert_empty(triangles.select { |_, _, normals| normals })
+      end
+
+      def test_draw_debug_setting_sets_the_opacity_of_the_faces
+        tool = TrueBendTool.new(create_solid(X))
+        bender_of(tool).distance = 5
+        { 0.25 => 63, 1.0 => 255 }.each { |opacity, alpha|
+          SETTINGS.debug_face_opacity = opacity
+
+          triangles = drawn_triangles(drawing_calls(tool))
+
+          shaded = triangles.select { |_, _, normals| normals }
+          refute_empty(shaded, "Opacity: #{opacity}")
+          shaded.each { |color, _, _| assert_equal(alpha, color.alpha, "Opacity: #{opacity}") }
+        }
+      end
+
       def test_draw_debug_setting_draws_the_points_of_the_bent_edges
         tool = TrueBendTool.new(create_solid(X))
         bender_of(tool).distance = 127.mm
@@ -1115,6 +1342,18 @@ module TT::Plugins::TrueBend
         assert_equal(with_points.count(&lines), without_points.count(&lines), 'Lines')
         assert_equal(with_points.count { |name, _, _| name == :draw_points } - 1,
                      without_points.count { |name, _, _| name == :draw_points }, 'Other points')
+      end
+
+      # From Ruby 3.0 a method that passes its arguments on has to pass
+      # keyword arguments on as such. `Sketchup::View#draw` ignores a Hash.
+      def test_high_dpi_view_passes_keyword_arguments_on
+        spy = RecordingViewSpy.new(Sketchup.active_model.active_view)
+        points = [ORIGIN, Geom::Point3d.new(1, 0, 0), Geom::Point3d.new(0, 1, 0)]
+        normals = [Z_AXIS, Z_AXIS, Z_AXIS]
+
+        HighDpiView.new(spy).draw(GL_TRIANGLES, points, normals: normals)
+
+        assert_equal([[:draw, [GL_TRIANGLES, points], { normals: normals }]], spy.calls)
       end
 
       # @param [TrueBendTool] tool

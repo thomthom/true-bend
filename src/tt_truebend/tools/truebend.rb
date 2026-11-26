@@ -264,6 +264,7 @@ module TT::Plugins::TrueBend
       @boundingbox.draw_axis(view, @hover_axis, HOVER_EDGE_WIDTH) if @hover_axis
       @handles.each_value { |handle| handle.draw(view) unless handle == @manipulator }
       @manipulator.draw(view)
+      @bender.draw_faces(view)
       draw_axis_buttons(view)
       draw_option_buttons(view)
       # The bender puts the measures of the bend in the tooltip. What a click
