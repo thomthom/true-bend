@@ -88,6 +88,7 @@ module TT::Plugins::TrueBend
       add_setting_toggle(menu, :debug_draw_debug_info)
       add_setting_toggle(menu, :debug_draw_local_mesh)
       add_setting_toggle(menu, :debug_draw_global_mesh)
+      add_setting_toggle(menu, :debug_draw_mesh_points)
       add_setting_toggle(menu, :debug_draw_slice_planes)
     end
 

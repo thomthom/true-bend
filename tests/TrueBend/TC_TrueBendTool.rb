@@ -66,6 +66,27 @@ module TT::Plugins::TrueBend
 
       end
 
+      # A `ViewSpy` that keeps what it is asked to draw.
+      class RecordingViewSpy < ViewSpy
+
+        # @return [Array<Array(Symbol, Array, Hash)>] The name, the arguments
+        #   and the keyword arguments of each call.
+        attr_reader :calls
+
+        def initialize(view)
+          super
+          @calls = []
+        end
+
+        %i[draw draw2d draw_points drawing_color=].each { |name|
+          define_method(name) { |*arguments, **options|
+            @calls << [name, arguments, options]
+            nil
+          }
+        }
+
+      end
+
       def setup
         isolate_settings
         start_with_empty_model
@@ -86,6 +107,9 @@ module TT::Plugins::TrueBend
         SETTINGS.bend_input_mode = :angle
         SETTINGS.bend_segmented = true
         SETTINGS.bend_soft_smooth = true
+        SETTINGS.debug_draw_global_mesh = false
+        SETTINGS.debug_draw_local_mesh = false
+        SETTINGS.debug_draw_mesh_points = false
       end
 
       def restore_settings
@@ -1069,6 +1093,28 @@ module TT::Plugins::TrueBend
         handles_of(tool).each_with_index { |handle, index|
           assert(extents.contains?(handle.origin), "Handle #{index}")
         }
+      end
+
+      def test_draw_debug_setting_draws_the_points_of_the_bent_edges
+        tool = TrueBendTool.new(create_solid(X))
+        bender_of(tool).distance = 127.mm
+        calls = lambda {
+          view = RecordingViewSpy.new(Sketchup.active_model.active_view)
+          without_user_feedback { tool.draw(view) }
+          view.calls
+        }
+        edge_points = proc { |name, arguments, _| name == :draw_points && arguments[3] == 'maroon' }
+        lines = proc { |name, arguments, _| name == :draw && arguments[0] == GL_LINES }
+        without_points = calls.call
+        assert_equal(0, without_points.count(&edge_points))
+
+        SETTINGS.debug_draw_mesh_points = true
+        with_points = calls.call
+
+        assert_equal(1, with_points.count(&edge_points))
+        assert_equal(with_points.count(&lines), without_points.count(&lines), 'Lines')
+        assert_equal(with_points.count { |name, _, _| name == :draw_points } - 1,
+                     without_points.count { |name, _, _| name == :draw_points }, 'Other points')
       end
 
       # @param [TrueBendTool] tool

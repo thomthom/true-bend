@@ -22,6 +22,7 @@ module TT::Plugins::TrueBend
     define :debug_draw_debug_info, false
     define :debug_draw_local_mesh, false
     define :debug_draw_global_mesh, false
+    define :debug_draw_mesh_points, false
     define :debug_draw_slice_planes, false
 
     define :debug_force_high_dpi, false

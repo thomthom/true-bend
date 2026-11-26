@@ -55,6 +55,8 @@ module TT::Plugins::TrueBend
       view.line_width = 2
       view.drawing_color = color
       view.draw(GL_LINES, points)
+      return unless SETTINGS.debug_draw_mesh_points?
+
       view.draw_points(points, 4, DRAW_FILLED_SQUARE, color)
     end
 
