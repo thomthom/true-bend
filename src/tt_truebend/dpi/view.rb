@@ -164,6 +164,9 @@ module TT::Plugins::TrueBend
     def method_missing(method_sym, *args, &block) # rubocop:disable Style/MissingRespondToMissing
       @view.send(method_sym, *args, &block)
     end
+    # Without this, Ruby 3.0 and later pass keyword arguments on as a
+    # positional Hash, which `Sketchup::View#draw` ignores.
+    ruby2_keywords(:method_missing) if respond_to?(:ruby2_keywords, true)
 
   end # class
 end # module

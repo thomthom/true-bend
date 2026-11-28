@@ -24,6 +24,10 @@ module TT::Plugins::TrueBend
     define :debug_draw_global_mesh, false
     define :debug_draw_mesh_points, false
     define :debug_draw_slice_planes, false
+    define :debug_draw_see_through_faces, false
+    # The opacity of an opaque face in the preview of the bend, from 0.0 to
+    # 1.0.
+    define :debug_face_opacity, 0.5
 
     define :debug_force_high_dpi, false
     define :debug_high_dpi_scaling_factor, 2.0

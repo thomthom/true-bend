@@ -90,6 +90,20 @@ module TT::Plugins::TrueBend
       add_setting_toggle(menu, :debug_draw_global_mesh)
       add_setting_toggle(menu, :debug_draw_mesh_points)
       add_setting_toggle(menu, :debug_draw_slice_planes)
+      add_setting_toggle(menu, :debug_draw_see_through_faces)
+      add_face_opacity_item(menu)
+    end
+
+    # @param [Sketchup::Menu] menu
+    def add_face_opacity_item(menu)
+      percent = (SETTINGS.debug_face_opacity * 100).round
+      menu.add_item("Debug Face Opacity (#{percent}%)...") {
+        input = UI.inputbox(['Opacity (%)'], [percent], 'Face Opacity')
+        if input
+          SETTINGS.debug_face_opacity = [[input[0], 0].max, 100].min / 100.0
+          @model.active_view.invalidate
+        end
+      }
     end
 
     # @param [Sketchup::Menu] menu

@@ -804,6 +804,201 @@ module TT::Plugins::TrueBend
         refute(bender.can_bend?)
       end
 
+
+      # The combinations of the Segmented and the Soften/Smooth option.
+      BEND_OPTIONS = {
+        'segmented_and_smooth' => [true, true],
+        'segmented_and_hard'   => [true, false],
+        'true_curve'           => [false, true],
+        'true_curve_and_hard'  => [false, false],
+      }.freeze
+
+      # Bends the solid that `create_solid` makes, with a loop of edges around
+      # it that the slicing planes don't pass through.
+      #
+      # @param [Geom::Transformation] transformation
+      # @param [Boolean] towards
+      # @param [Boolean] tapered
+      # @param [Float] loop_at How far along the solid the loop of edges is, as
+      #   a ratio of its length.
+      # @yieldparam [Bender] bender Yielded before the bend is committed, for
+      #   setting it up further.
+      # @return [Array(Array<Array>, Sketchup::Group)] The triangles
+      #   `Bender#bent_triangles` gave before the bend was committed, and the
+      #   bent instance.
+      def preview_and_commit(transformation, towards, tapered: true, loop_at: 0.4)
+        skip('The face preview needs SketchUp 2020.') unless FaceDrawer.supported?
+        axis = BendAxes::X
+        instance = create_solid(axis, transformation, tapered: tapered)
+        add_edge_loop(instance, axis, loop_at, tapered: tapered)
+        axes = BendAxes.along(instance, axis).first
+        triangles = nil
+        bent = commit_bend(instance, axes, drag_vector(axes, towards)) { |bender|
+          yield bender
+          triangles = bender.bent_triangles(FaceColors.new(Sketchup.active_model))
+        }
+        [triangles, bent]
+      end
+
+      BEND_OPTIONS.each { |options, (segmented, soft_smooth)|
+        [true, false].each { |towards|
+          name = "test_bent_triangles_#{options}_#{towards ? 'towards' : 'away'}_" \
+                 'have_the_vertices_of_the_committed_bend'
+          define_method(name) {
+            triangles, bent = preview_and_commit(ROTATED_SCALED_AND_MIRRORED, towards) { |bender|
+              bender.segmented = segmented
+              bender.soft_smooth = soft_smooth
+            }
+
+            points = triangles.flat_map(&:positions)
+            refute_empty(points)
+            world_positions(bent).each { |vertex|
+              nearest = points.map { |point| point.distance(vertex).to_f }.min
+              assert_operator(nearest, :<, TOLERANCE,
+                              "No triangle has a vertex at #{vertex.to_a.inspect}")
+            }
+          }
+
+          name = "test_bounds_#{options}_#{towards ? 'towards' : 'away'}_contain_the_committed_bend"
+          define_method(name) {
+            bounds = nil
+            _, bent = preview_and_commit(ROTATED_SCALED_AND_MIRRORED, towards) { |bender|
+              bender.segmented = segmented
+              bender.soft_smooth = soft_smooth
+              bounds = bender.bounds
+            }
+
+            world_positions(bent).each { |vertex|
+              assert(bounds.contains?(vertex), "The bounds don't contain #{vertex.to_a.inspect}")
+            }
+          }
+        }
+      }
+
+      # At 300 degrees the bend reaches furthest along the reference segment a
+      # fifth of the way in, where the loop of edges is. That is inside one of
+      # the slices the bounds are found from, not at its corners. The solid is
+      # deep enough to reach beyond the ends of the reference segment there.
+      def test_bounds_contain_a_true_curve_inside_the_slices_they_are_found_from
+        refute_equal(0, Bender::BOUNDS_SLICES % 5, 'The loop of edges is where two slices meet')
+        deep = Geom::Transformation.scaling(1, 20, 20)
+        bounds = nil
+        _, bent = preview_and_commit(deep, false, tapered: false, loop_at: 0.2) { |bender|
+          bender.segmented = false
+          bender.angle = 300.degrees
+          bounds = bender.bounds
+        }
+
+        world_positions(bent).each { |vertex|
+          assert(bounds.contains?(vertex), "The bounds don't contain #{vertex.to_a.inspect}")
+        }
+      end
+
+      # A negative angle gives the bend a negative radius. With this many
+      # subdivisions the preview has vertices between the corners of the
+      # slices that the bounds are found from.
+      def test_bounds_contain_the_preview_of_a_true_curve_with_a_negative_angle
+        subdivisions = 125
+        assert_equal(1, subdivisions.gcd(Bender::BOUNDS_SLICES))
+        [true, false].each { |towards|
+          bounds = nil
+          triangles, = preview_and_commit(IDENTITY, towards, tapered: false) { |bender|
+            bender.segmented = false
+            bender.subdivisions = subdivisions
+            bender.angle = -300.degrees
+            bounds = bender.bounds
+          }
+
+          refute_empty(triangles)
+          triangles.flat_map(&:positions).each { |position|
+            assert(bounds.contains?(position),
+                   "Dragged #{towards ? 'towards' : 'away from'} the front: " \
+                   "the bounds don't contain #{position.to_a.inspect}")
+          }
+        }
+      end
+
+      def test_bent_triangles_cover_the_faces_of_the_committed_bend
+        triangles, bent = preview_and_commit(IDENTITY, true, tapered: false) { |bender|
+          bender.segmented = true
+        }
+
+        # Without a taper every face of the segmented bend is flat, so the
+        # triangles cover the same area.
+        expected = bent.entities.grep(Sketchup::Face).inject(0.0) { |sum, face| sum + face.area }
+        # The cross product of two edges has twice the area of the triangle as
+        # its length.
+        area = triangles.inject(0.0) { |sum, triangle|
+          sum + (triangle.face_normal.length.to_f / 2.0)
+        }
+        assert_in_delta(expected, area, 1.0e-3)
+      end
+
+      # The edges a segmented bend adds are hard when it is not softened, so
+      # each triangle is shaded as the flat face it is part of.
+      def test_bent_triangles_segmented_and_hard_has_the_normals_of_the_segments
+        [true, false].each { |towards|
+          triangles, = preview_and_commit(TRANSLATION * ARBITRARY_ROTATION, towards,
+                                          tapered: false) { |bender|
+            bender.segmented = true
+            bender.soft_smooth = false
+          }
+
+          refute_empty(triangles)
+          triangles.each { |triangle|
+            face_normal = triangle.face_normal
+            next unless face_normal.valid?
+
+            triangle.normals.each { |normal|
+              assert_in_delta(0.0, normal.angle_between(face_normal), 1.0e-6,
+                              "Bending #{towards ? 'towards' : 'away from'} the front")
+            }
+          }
+        }
+      end
+
+      def test_bent_triangles_normals_follow_the_curve_unless_segmented_and_hard
+        BEND_OPTIONS.each { |options, (segmented, soft_smooth)|
+          next if segmented && !soft_smooth
+
+          triangles, = preview_and_commit(IDENTITY, true, tapered: false) { |bender|
+            bender.segmented = segmented
+            bender.soft_smooth = soft_smooth
+          }
+
+          # Along the bend the direction of the curve changes within a
+          # triangle.
+          curved = triangles.select { |triangle|
+            first, second, third = triangle.normals
+            first.angle_between(second) > 1.degrees || first.angle_between(third) > 1.degrees
+          }
+          refute_empty(curved, options)
+        }
+      end
+
+      def test_face_drawer_supported_from_the_version_with_vertex_normals
+        refute(FaceDrawer.supported?(19))
+        assert(FaceDrawer.supported?(20))
+        assert(FaceDrawer.supported?(27))
+      end
+
+      def test_bent_triangles_have_the_colors_of_their_faces
+        model = Sketchup.active_model
+        instance = create_solid(BendAxes::X)
+        instance.material = 'red'
+        axes = BendAxes.along(instance, BendAxes::X).first
+        bender = Bender.new(instance, axes.segment, axes.normal)
+        bender.bend(drag_vector(axes, true))
+
+        triangles = bender.bent_triangles(FaceColors.new(model, 0.5))
+
+        refute_empty(triangles)
+        triangles.each { |triangle|
+          assert_equal([255, 0, 0, 127], triangle.front_color.to_a, 'Front')
+          assert_equal([255, 0, 0, 127], triangle.back_color.to_a, 'Back')
+        }
+      end
+
     end # class
   end # module
 end # module
