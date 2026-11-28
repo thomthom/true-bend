@@ -379,27 +379,31 @@ module TT::Plugins::TrueBend
     def draw_faces(view)
       return unless bending? && FaceDrawer.supported?
 
-      colors = FaceColors.new(view.model, SETTINGS.debug_face_opacity)
-      return unless colors.fill?
+      face_colors = FaceColors.new(view.model, SETTINGS.debug_face_opacity)
+      return unless face_colors.fill?
 
-      draw_triangles(view, bent_triangles(colors), SETTINGS.debug_draw_see_through_faces?)
+      triangles = bent_triangles(face_colors)
+      draw_triangles(view, triangles, SETTINGS.debug_draw_see_through_faces?)
     end
 
-    # The visible faces of the instance, cut and moved the way the bend would
-    # cut and move them.
+    # Triangulates the visible faces of the instance and bends the triangles
+    # the way the bend would bend the faces.
     #
-    # @param [FaceColors] colors
-    # @return [Array<Array>] See {PolarProjection#project_triangles}. The value
-    #   passed through with each triangle is the colours of its front and back.
-    def bent_triangles(colors)
+    # @param [FaceColors] face_colors
+    # @return [Array<PreviewTriangle>]
+    def bent_triangles(face_colors)
       to_segment_space = world_to_segment_space
-      cuts = @segmenter.points.map { |point| point.transform(to_segment_space).x.to_f }.sort
-      triangulator = FaceTriangulator.new(colors)
-      triangles = triangulator.slice(triangulator.triangles(@instance, to_segment_space), cuts)
-      # The edges the bend adds stay hard only in a segmented bend that is not
-      # softened.
-      flat = @segmented && !@soft_smooth
-      polar_projection.project_triangles(triangles, convex?, segment_angle, flat: flat)
+      # The bend slices the instance where the reference segment is
+      # subdivided.
+      slicing_plane_positions = @segmenter.points.map { |point|
+        point.transform(to_segment_space).x
+      }.sort
+      triangulator = FaceTriangulator.new(face_colors)
+      triangles = triangulator.triangles(@instance, to_segment_space)
+      triangles = triangulator.slice(triangles, slicing_plane_positions)
+      # A bend that is not segmented has no segment angle, and is always
+      # smooth.
+      polar_projection.project_triangles(triangles, convex?, segment_angle, smooth: @soft_smooth)
     end
 
     private
@@ -539,23 +543,26 @@ module TT::Plugins::TrueBend
     def bent_bounds
       to_segment_space = world_to_segment_space * @instance.transformation
       box = definition(@instance).bounds
-      corners = Array.new(8) { |i| box.corner(i).transform(to_segment_space) }
-      x_min, x_max = corners.map(&:x).minmax
-      y_range = corners.map(&:y).minmax
-      z_range = corners.map(&:z).minmax
+      box_corners = Array.new(8) { |index| box.corner(index).transform(to_segment_space) }
+      x_min, x_max = box_corners.map(&:x).minmax
+      y_min_max = box_corners.map(&:y).minmax
+      z_min_max = box_corners.map(&:z).minmax
       slice_length = (x_max - x_min).to_f / BOUNDS_SLICES
-      points = (0..BOUNDS_SLICES).flat_map { |i|
-        x = x_min + (slice_length * i)
-        y_range.product(z_range).map { |y, z| Geom::Point3d.new(x, y, z) }
+      slice_corners = (0..BOUNDS_SLICES).flat_map { |index|
+        x = x_min + (slice_length * index)
+        y_min_max.product(z_min_max).map { |y, z| Geom::Point3d.new(x, y, z) }
       }
       bounds = Geom::BoundingBox.new
-      bounds.add(polar_projection.project(points, convex?, nil))
-      # Within a slice the bend follows a circle, which reaches further out
-      # than the straight line between the corners of the slice.
-      reach = radius.to_f + y_range.map(&:abs).max
-      margin = reach * (1.0 - Math.cos(slice_length / radius.to_f / 2.0))
-      growth = Geom::Vector3d.new(margin, margin, margin)
-      bounds.add(bounds.min - growth, bounds.max + growth)
+      bounds.add(polar_projection.project(slice_corners, convex?, nil))
+      # Between the corners of a slice the bend is an arc. The arc bulges
+      # beyond the chord between the bent corners by its sagitta, which is
+      # largest for the arc that is furthest from the origin of the bend.
+      # The radius is negative when the angle is.
+      outer_radius = radius.to_f.abs + y_min_max.map(&:abs).max
+      slice_angle = slice_length / radius.to_f
+      sagitta = outer_radius * (1.0 - Math.cos(slice_angle / 2.0))
+      margin = Geom::Vector3d.new(sagitta, sagitta, sagitta)
+      bounds.add(bounds.min - margin, bounds.max + margin)
     end
 
     # Creates a transformation that convert world coordinates to a local

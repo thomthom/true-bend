@@ -1102,11 +1102,12 @@ module TT::Plugins::TrueBend
         skip('The face preview needs SketchUp 2020.') unless FaceDrawer.supported?
         instance = create_solid(X)
         tool = TrueBendTool.new(instance)
-        bender_of(tool).distance = 5
+        bender_of(tool).distance = 127.mm
 
         extents = without_user_feedback { tool.getExtents }
 
-        points = bender_of(tool).bent_triangles(FaceColors.new(instance.model)).flat_map(&:first)
+        triangles = bender_of(tool).bent_triangles(FaceColors.new(instance.model))
+        points = triangles.flat_map(&:positions)
         refute_empty(points)
         points.each { |point|
           assert(extents.contains?(point), "The extents don't contain #{point.to_a.inspect}")
@@ -1148,7 +1149,7 @@ module TT::Plugins::TrueBend
       def test_draw_shades_the_bent_faces_half_transparent
         instance = create_solid(X)
         tool = TrueBendTool.new(instance)
-        bender_of(tool).distance = 5
+        bender_of(tool).distance = 127.mm
 
         triangles = drawn_triangles(drawing_calls(tool))
 
@@ -1171,7 +1172,7 @@ module TT::Plugins::TrueBend
 
       def test_draw_draws_no_faces_in_a_wireframe_style
         tool = TrueBendTool.new(create_solid(X))
-        bender_of(tool).distance = 5
+        bender_of(tool).distance = 127.mm
 
         assert_empty(drawn_triangles(drawing_calls(tool, FaceColors::WIREFRAME)))
       end
@@ -1180,7 +1181,7 @@ module TT::Plugins::TrueBend
       # faces. The buttons are not in model space.
       def test_draw_draws_the_faces_last_in_model_space
         tool = TrueBendTool.new(create_solid(X))
-        bender_of(tool).distance = 5
+        bender_of(tool).distance = 127.mm
 
         calls = drawing_calls(tool)
 
@@ -1195,7 +1196,7 @@ module TT::Plugins::TrueBend
       # all of them is drawn first, without a colour.
       def test_draw_draws_the_depth_of_the_faces_before_the_faces
         tool = TrueBendTool.new(create_solid(X))
-        bender_of(tool).distance = 5
+        bender_of(tool).distance = 127.mm
 
         triangles = drawn_triangles(drawing_calls(tool))
 
@@ -1213,16 +1214,18 @@ module TT::Plugins::TrueBend
         skip('The face preview needs SketchUp 2020.') unless FaceDrawer.supported?
         instance = create_solid(X)
         tool = TrueBendTool.new(instance)
-        bender_of(tool).distance = 5
+        bender_of(tool).distance = 127.mm
         view = Sketchup.active_model.active_view
-        faces = bender_of(tool).bent_triangles(FaceColors.new(instance.model)).flat_map(&:first)
         [false, true].each { |perspective|
           look_at(instance)
           view.camera.perspective = perspective
           camera = view.camera
 
-          _, depth, = drawn_triangles(drawing_calls(tool)).first
+          triangles = drawn_triangles(drawing_calls(tool))
 
+          _, depth, = triangles.first
+          faces = triangles.drop(1).flat_map { |_, points, _| points }
+          refute_empty(faces, "Perspective: #{perspective}")
           assert_equal(faces.size, depth.size, "Perspective: #{perspective}")
           faces.zip(depth) { |face_point, depth_point|
             offset = face_point.vector_to(depth_point)
@@ -1238,7 +1241,7 @@ module TT::Plugins::TrueBend
 
       def test_draw_debug_setting_draws_the_faces_behind_other_faces
         tool = TrueBendTool.new(create_solid(X))
-        bender_of(tool).distance = 5
+        bender_of(tool).distance = 127.mm
         SETTINGS.debug_draw_see_through_faces = true
 
         triangles = drawn_triangles(drawing_calls(tool))
@@ -1265,7 +1268,7 @@ module TT::Plugins::TrueBend
       def test_draw_draws_the_faces_that_face_away_first_in_the_color_of_their_back
         instance = create_two_sided_solid
         tool = TrueBendTool.new(instance)
-        bender_of(tool).distance = 5
+        bender_of(tool).distance = 127.mm
         # In a parallel projection the direction of the camera decides which
         # side of a face it sees, not its position. This camera is lower than
         # the top of the solid and looks slightly down, so it sees the top
@@ -1301,16 +1304,36 @@ module TT::Plugins::TrueBend
         instance.material = 'red'
         instance.material.alpha = 0.0
         tool = TrueBendTool.new(instance)
-        bender_of(tool).distance = 5
+        bender_of(tool).distance = 127.mm
 
         triangles = drawn_triangles(drawing_calls(tool))
 
-        assert_empty(triangles.select { |_, _, normals| normals })
+        assert_empty(triangles)
+      end
+
+      # A face that is not drawn must not hide the faces behind it either.
+      def test_draw_leaves_fully_transparent_faces_out_of_the_depth_of_the_faces
+        instance = create_solid(X)
+        invisible = Sketchup.active_model.materials.add('Invisible')
+        invisible.alpha = 0.0
+        face = instance.entities.grep(Sketchup::Face).first
+        face.material = invisible
+        face.back_material = invisible
+        tool = TrueBendTool.new(instance)
+        bender_of(tool).distance = 127.mm
+        all_points = bender_of(tool).bent_triangles(FaceColors.new(instance.model)).size * 3
+
+        triangles = drawn_triangles(drawing_calls(tool))
+
+        _, depth_points, = triangles.first
+        shaded_points = triangles.drop(1).inject(0) { |sum, (_, points, _)| sum + points.size }
+        assert_operator(shaded_points, :<, all_points, 'The invisible face is not drawn')
+        assert_equal(shaded_points, depth_points.size)
       end
 
       def test_draw_debug_setting_sets_the_opacity_of_the_faces
         tool = TrueBendTool.new(create_solid(X))
-        bender_of(tool).distance = 5
+        bender_of(tool).distance = 127.mm
         { 0.25 => 63, 1.0 => 255 }.each { |opacity, alpha|
           SETTINGS.debug_face_opacity = opacity
 

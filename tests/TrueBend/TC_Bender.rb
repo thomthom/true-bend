@@ -813,8 +813,8 @@ module TT::Plugins::TrueBend
         'true_curve_and_hard'  => [false, false],
       }.freeze
 
-      # Bends the test solid, with a loop of edges around it that the slicing
-      # planes don't pass through.
+      # Bends the solid that `create_solid` makes, with a loop of edges around
+      # it that the slicing planes don't pass through.
       #
       # @param [Geom::Transformation] transformation
       # @param [Boolean] towards
@@ -850,7 +850,7 @@ module TT::Plugins::TrueBend
               bender.soft_smooth = soft_smooth
             }
 
-            points = triangles.flat_map(&:first)
+            points = triangles.flat_map(&:positions)
             refute_empty(points)
             world_positions(bent).each { |vertex|
               nearest = points.map { |point| point.distance(vertex).to_f }.min
@@ -894,6 +894,30 @@ module TT::Plugins::TrueBend
         }
       end
 
+      # A negative angle gives the bend a negative radius. With this many
+      # subdivisions the preview has vertices between the corners of the
+      # slices that the bounds are found from.
+      def test_bounds_contain_the_preview_of_a_true_curve_with_a_negative_angle
+        subdivisions = 125
+        assert_equal(1, subdivisions.gcd(Bender::BOUNDS_SLICES))
+        [true, false].each { |towards|
+          bounds = nil
+          triangles, = preview_and_commit(IDENTITY, towards, tapered: false) { |bender|
+            bender.segmented = false
+            bender.subdivisions = subdivisions
+            bender.angle = -300.degrees
+            bounds = bender.bounds
+          }
+
+          refute_empty(triangles)
+          triangles.flat_map(&:positions).each { |position|
+            assert(bounds.contains?(position),
+                   "Dragged #{towards ? 'towards' : 'away from'} the front: " \
+                   "the bounds don't contain #{position.to_a.inspect}")
+          }
+        }
+      end
+
       def test_bent_triangles_cover_the_faces_of_the_committed_bend
         triangles, bent = preview_and_commit(IDENTITY, true, tapered: false) { |bender|
           bender.segmented = true
@@ -902,8 +926,10 @@ module TT::Plugins::TrueBend
         # Without a taper every face of the segmented bend is flat, so the
         # triangles cover the same area.
         expected = bent.entities.grep(Sketchup::Face).inject(0.0) { |sum, face| sum + face.area }
-        area = triangles.inject(0.0) { |sum, (points, _)|
-          sum + (((points[1] - points[0]) * (points[2] - points[0])).length.to_f / 2.0)
+        # The cross product of two edges has twice the area of the triangle as
+        # its length.
+        area = triangles.inject(0.0) { |sum, triangle|
+          sum + (triangle.face_normal.length.to_f / 2.0)
         }
         assert_in_delta(expected, area, 1.0e-3)
       end
@@ -919,11 +945,11 @@ module TT::Plugins::TrueBend
           }
 
           refute_empty(triangles)
-          triangles.each { |points, normals, _|
-            face_normal = (points[1] - points[0]) * (points[2] - points[0])
+          triangles.each { |triangle|
+            face_normal = triangle.face_normal
             next unless face_normal.valid?
 
-            normals.each { |normal|
+            triangle.normals.each { |normal|
               assert_in_delta(0.0, normal.angle_between(face_normal), 1.0e-6,
                               "Bending #{towards ? 'towards' : 'away from'} the front")
             }
@@ -942,9 +968,9 @@ module TT::Plugins::TrueBend
 
           # Along the bend the direction of the curve changes within a
           # triangle.
-          curved = triangles.select { |_, normals, _|
-            normals[0].angle_between(normals[1]) > 1.degrees ||
-              normals[0].angle_between(normals[2]) > 1.degrees
+          curved = triangles.select { |triangle|
+            first, second, third = triangle.normals
+            first.angle_between(second) > 1.degrees || first.angle_between(third) > 1.degrees
           }
           refute_empty(curved, options)
         }
@@ -967,8 +993,9 @@ module TT::Plugins::TrueBend
         triangles = bender.bent_triangles(FaceColors.new(model, 0.5))
 
         refute_empty(triangles)
-        triangles.each { |_, _, colors|
-          assert_equal([[255, 0, 0, 127], [255, 0, 0, 127]], colors.map(&:to_a))
+        triangles.each { |triangle|
+          assert_equal([255, 0, 0, 127], triangle.front_color.to_a, 'Front')
+          assert_equal([255, 0, 0, 127], triangle.back_color.to_a, 'Back')
         }
       end
 

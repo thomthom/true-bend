@@ -1,164 +1,162 @@
+require 'tt_truebend/gl/preview_triangle'
 require 'tt_truebend/helpers/instance'
 
 module TT::Plugins::TrueBend
-  # Converts the faces of an instance to triangles, for drawing a preview of
-  # the faces.
-  #
-  # A triangle is an Array of three vertices followed by the colours
-  # {FaceColors#colors} returns for its face. A vertex is an Array of six
-  # Floats: the position followed by the normal.
+  # Converts the faces of an instance to the triangles of the preview of the
+  # bend.
   class FaceTriangulator
 
     include InstanceHelper
 
-    # A triangle is not cut by a plane that is closer than this to its
-    # outermost vertex.
-    TOLERANCE = 1.0e-9
+    # The `Sketchup::Face#mesh` flag for a mesh with vertex normals. Older
+    # SketchUp versions have no constant for it.
+    MESH_NORMALS = if defined?(Geom::PolygonMesh::MESH_NORMALS)
+                     Geom::PolygonMesh::MESH_NORMALS
+                   else
+                     4
+                   end
 
-    # The flag that makes `Sketchup::Face#mesh` include the normals.
-    MESH_NORMALS = 4
-
-    # @param [FaceColors] colors
-    def initialize(colors)
-      @colors = colors
+    # @param [FaceColors] face_colors
+    def initialize(face_colors)
+      @face_colors = face_colors
     end
 
-    # The faces of the instance and of the instances inside it that SketchUp
-    # shows. This relies on `Sketchup::Model#drawing_element_visible?`, which
-    # SketchUp has from version 2020.
+    # Triangulates the faces that SketchUp shows of the instance and of the
+    # instances nested in it. It relies on
+    # `Sketchup::Model#drawing_element_visible?`, which was added in SketchUp
+    # 2020.
     #
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
-    # @param [Geom::Transformation] transformation The transformation from the
-    #   coordinates the instance is placed in to the coordinates of the
-    #   triangles.
-    # @return [Array<Array>]
+    # @param [Geom::Transformation] transformation Converts the coordinates
+    #   the instance is placed in to the coordinates of the triangles.
+    # @return [Array<PreviewTriangle>]
     def triangles(instance, transformation = IDENTITY)
-      result = []
-      path = (instance.model.active_path || []) + [instance]
-      collect(path, transformation, nil, result)
-      result
+      triangles = []
+      instance_path = (instance.model.active_path || []) + [instance]
+      add_instance(triangles, instance_path, transformation, nil)
+      triangles
     end
 
-    # Cuts the triangles along planes that are perpendicular to the X axis.
+    # Splits the triangles along planes that are perpendicular to the X axis,
+    # so that no triangle crosses a plane.
     #
-    # @param [Array<Array>] triangles
-    # @param [Array<Float>] cuts The X coordinates of the planes, in ascending
-    #   order.
-    # @return [Array<Array>]
-    def slice(triangles, cuts)
-      result = []
+    # @param [Array<PreviewTriangle>] triangles
+    # @param [Array<Length, Float>] plane_positions The X coordinates of the
+    #   planes, in ascending order.
+    # @return [Array<PreviewTriangle>]
+    def slice(triangles, plane_positions)
+      # A `Length` is compared with SketchUp's tolerance when it is the
+      # receiver of the comparison. A plane that only touches a triangle then
+      # doesn't split it.
+      plane_positions = plane_positions.map(&:to_l)
+      sliced = []
       triangles.each { |triangle|
-        polygon = triangle[0, 3]
-        colors = triangle[3]
-        min, max = [polygon[0][0], polygon[1][0], polygon[2][0]].minmax
-        index = (0...cuts.size).bsearch { |i| cuts[i] > min + TOLERANCE }
-        while index && index < cuts.size && cuts[index] < max - TOLERANCE
-          before, polygon = split(polygon, cuts[index])
-          fan(before, colors, result)
+        polygon = triangle.vertices
+        x_min, x_max = polygon.map(&:x).minmax
+        index = plane_positions.bsearch_index { |plane_x| plane_x > x_min }
+        while index && index < plane_positions.size && plane_positions[index] < x_max
+          before, polygon = split(polygon, plane_positions[index])
+          add_triangle_fan(sliced, before, triangle)
           index += 1
         end
-        fan(polygon, colors, result)
+        add_triangle_fan(sliced, polygon, triangle)
       }
-      result
+      sliced
     end
 
     private
 
-    # @param [Array<Sketchup::Drawingelement>] path The instance to collect
-    #   the faces of, preceded by the instances it is inside of.
-    # @param [Geom::Transformation] transformation
-    # @param [Array, nil] inherited See {FaceColors#inherit}.
-    # @param [Array<Array>] result The triangles are added to this.
-    def collect(path, transformation, inherited, result)
-      instance = path.last
+    # @param [Array<PreviewTriangle>] triangles The triangles of the instance
+    #   are appended to this.
+    # @param [Array<Sketchup::Drawingelement>] instance_path The instance,
+    #   preceded by the instances it is nested in.
+    # @param [Geom::Transformation] transformation Converts the coordinates
+    #   the instance is placed in to the coordinates of the triangles.
+    # @param [FaceColors::Inherited, nil] inherited What the instance inherits
+    #   from the instance it is nested in.
+    def add_instance(triangles, instance_path, transformation, inherited)
+      instance = instance_path.last
       model = instance.model
-      inherited = @colors.inherit(instance, inherited)
-      to_target = transformation * instance.transformation
-      normals_to_target = normal_transformation(to_target)
-      face_path = path + [nil]
+      inherited = @face_colors.inherit(instance, inherited)
+      transformation *= instance.transformation
+      face_path = instance_path + [nil]
       definition(instance).entities.each { |entity|
         if entity.is_a?(Sketchup::Face)
-          # Before SketchUp 2026 the path cannot end in an instance, so the
-          # visibility of an instance is found from its faces. The faces are
-          # only collected in SketchUp 2020 and later, which have the method.
+          # Only faces are tested, because the method raises for a path that
+          # ends in an instance before SketchUp 2026. A face in a hidden
+          # instance is reported as not visible.
           face_path[-1] = entity
           # rubocop:disable-next SketchupSuggestions/Compatibility
           next unless model.drawing_element_visible?(face_path)
 
-          add_face(entity, to_target, normals_to_target, inherited, result)
+          add_face(triangles, entity, transformation, inherited)
         elsif instance?(entity)
-          collect(path + [entity], to_target, inherited, result)
+          add_instance(triangles, instance_path + [entity], transformation, inherited)
         end
       }
     end
 
+    # @param [Array<PreviewTriangle>] triangles The triangles of the face are
+    #   appended to this.
     # @param [Sketchup::Face] face
     # @param [Geom::Transformation] transformation
-    # @param [Geom::Transformation] normal_transformation
-    # @param [Array, nil] inherited See {FaceColors#inherit}.
-    # @param [Array<Array>] result The triangles are added to this.
-    def add_face(face, transformation, normal_transformation, inherited, result)
+    # @param [FaceColors::Inherited] inherited
+    def add_face(triangles, face, transformation, inherited)
       mesh = face.mesh(MESH_NORMALS)
+      # This keeps the normals perpendicular to the faces, also when the
+      # transformation scales non-uniformly or mirrors.
+      mesh.transform!(transformation)
       vertices = mesh.points.each_with_index.map { |point, index|
-        normal = mesh.normal_at(index + 1).transform(normal_transformation)
-        point.transform(transformation).to_a.map(&:to_f) + normal.to_a
+        # Mesh indices start at 1.
+        PreviewVertex.from_geom(point, mesh.normal_at(index + 1))
       }
-      colors = @colors.colors(face, inherited)
+      front_color, back_color = @face_colors.colors_of(face, inherited)
       mesh.polygons.each { |polygon|
         # A negative index marks an edge of the polygon as hidden.
-        a, b, c = polygon.map { |index| vertices[index.abs - 1] }
-        result << [a, b, c, colors]
+        corners = polygon.map { |index| vertices[index.abs - 1] }
+        triangles << PreviewTriangle.new(corners, front_color, back_color)
       }
     end
 
-    # A normal stays perpendicular to its face only if it is transformed by
-    # the inverse transpose of the transformation of the face. That is another
-    # transformation when the face is scaled non-uniformly.
+    # Splits a convex polygon along a plane that is perpendicular to the X
+    # axis.
     #
-    # @param [Geom::Transformation] transformation
-    # @return [Geom::Transformation]
-    def normal_transformation(transformation)
-      m = transformation.inverse.to_a
-      transposed = [
-        m[0], m[4], m[8],  0.0,
-        m[1], m[5], m[9],  0.0,
-        m[2], m[6], m[10], 0.0,
-        0.0,  0.0,  0.0,   1.0,
-      ]
-      Geom::Transformation.new(transposed)
-    end
-
-    # @param [Array<Array<Float>>] polygon Vertices of a convex polygon.
-    # @param [Float] cut The X coordinate to split the polygon at.
-    # @return [Array(Array, Array)] The parts of the polygon before and after
-    #   the cut. A part has fewer than three vertices when the polygon doesn't
-    #   reach across the cut.
-    def split(polygon, cut)
+    # @param [Array<PreviewVertex>] polygon
+    # @param [Length] plane_x The X coordinate of the plane.
+    # @return [Array(Array<PreviewVertex>, Array<PreviewVertex>)] The part of
+    #   the polygon before the plane and the part after it, along the X axis.
+    #   A part has fewer than three vertices when the polygon doesn't cross
+    #   the plane.
+    def split(polygon, plane_x)
       before = []
       after = []
       polygon.each_with_index { |vertex, index|
-        following = polygon[(index + 1) % polygon.size]
-        offset = vertex[0] - cut
-        following_offset = following[0] - cut
+        next_vertex = polygon[(index + 1) % polygon.size]
+        offset = vertex.x - plane_x
+        next_offset = next_vertex.x - plane_x
         before << vertex if offset <= 0.0
         after << vertex if offset >= 0.0
-        next unless offset * following_offset < 0.0
+        edge_crosses_plane = offset * next_offset < 0.0
+        next unless edge_crosses_plane
 
-        ratio = offset / (offset - following_offset)
-        crossing = Array.new(6) { |i| vertex[i] + ((following[i] - vertex[i]) * ratio) }
-        crossing[0] = cut
+        crossing = vertex.interpolate(next_vertex, offset / (offset - next_offset))
         before << crossing
         after << crossing
       }
       [before, after]
     end
 
-    # @param [Array<Array<Float>>] polygon Vertices of a convex polygon.
-    # @param [Array<Sketchup::Color>] colors
-    # @param [Array<Array>] result The triangles are added to this.
-    def fan(polygon, colors, result)
-      (1...(polygon.size - 1)).each { |index|
-        result << [polygon[0], polygon[index], polygon[index + 1], colors]
+    # Triangulates a convex polygon as a triangle fan.
+    #
+    # @param [Array<PreviewTriangle>] triangles The triangles of the polygon
+    #   are appended to this.
+    # @param [Array<PreviewVertex>] polygon
+    # @param [PreviewTriangle] source The triangle the polygon is a part of,
+    #   which the new triangles take their colours from.
+    def add_triangle_fan(triangles, polygon, source)
+      polygon.drop(1).each_cons(2) { |second, third|
+        corners = [polygon.first, second, third]
+        triangles << PreviewTriangle.new(corners, source.front_color, source.back_color)
       }
     end
 

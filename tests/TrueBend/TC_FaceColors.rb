@@ -65,7 +65,7 @@ module TT::Plugins::TrueBend
       # @param [Sketchup::Entities] entities
       # @return [Sketchup::Face]
       def add_face(entities = Sketchup.active_model.entities)
-        entities.add_face([0, 0, 0], [10, 0, 0], [10, 10, 0], [0, 10, 0])
+        entities.add_face([0, 0, 0], [10.mm, 0, 0], [10.mm, 10.mm, 0], [0, 10.mm, 0])
       end
 
       # @param [Array<Integer>] expected Red, green, blue and alpha.
@@ -82,7 +82,7 @@ module TT::Plugins::TrueBend
         face.material = material('Red', RED)
         face.back_material = material('Blue', BLUE)
 
-        front, back = FaceColors.new(Sketchup.active_model).colors(face)
+        front, back = FaceColors.new(Sketchup.active_model).colors_of(face)
 
         assert_color(RED + [255], front, 'Front')
         assert_color(BLUE + [255], back, 'Back')
@@ -91,7 +91,7 @@ module TT::Plugins::TrueBend
       def test_colors_without_a_material_are_the_face_colors_of_the_style
         face = add_face
 
-        front, back = FaceColors.new(Sketchup.active_model).colors(face)
+        front, back = FaceColors.new(Sketchup.active_model).colors_of(face)
 
         assert_color(FRONT + [255], front, 'Front')
         assert_color(BACK + [255], back, 'Back')
@@ -101,9 +101,9 @@ module TT::Plugins::TrueBend
         group = Sketchup.active_model.entities.add_group
         face = add_face(group.entities)
         group.material = material('Green', GREEN)
-        colors = FaceColors.new(Sketchup.active_model)
+        face_colors = FaceColors.new(Sketchup.active_model)
 
-        front, back = colors.colors(face, colors.inherit(group))
+        front, back = face_colors.colors_of(face, face_colors.inherit(group))
 
         assert_color(GREEN + [255], front, 'Front')
         assert_color(GREEN + [255], back, 'Back')
@@ -114,9 +114,10 @@ module TT::Plugins::TrueBend
         inner = outer.entities.add_group
         face = add_face(inner.entities)
         outer.material = material('Green', GREEN)
-        colors = FaceColors.new(Sketchup.active_model)
+        face_colors = FaceColors.new(Sketchup.active_model)
 
-        front, back = colors.colors(face, colors.inherit(inner, colors.inherit(outer)))
+        inherited = face_colors.inherit(inner, face_colors.inherit(outer))
+        front, back = face_colors.colors_of(face, inherited)
 
         assert_color(GREEN + [255], front, 'Front')
         assert_color(GREEN + [255], back, 'Back')
@@ -128,9 +129,9 @@ module TT::Plugins::TrueBend
         face = add_face(inner.entities)
         outer.material = material('Green', GREEN)
         inner.material = material('Blue', BLUE)
-        colors = FaceColors.new(Sketchup.active_model)
+        face_colors = FaceColors.new(Sketchup.active_model)
 
-        front, = colors.colors(face, colors.inherit(inner, colors.inherit(outer)))
+        front, = face_colors.colors_of(face, face_colors.inherit(inner, face_colors.inherit(outer)))
 
         assert_color(BLUE + [255], front)
       end
@@ -140,9 +141,9 @@ module TT::Plugins::TrueBend
         face = add_face(group.entities)
         face.material = material('Red', RED)
         group.material = material('Green', GREEN)
-        colors = FaceColors.new(Sketchup.active_model)
+        face_colors = FaceColors.new(Sketchup.active_model)
 
-        front, back = colors.colors(face, colors.inherit(group))
+        front, back = face_colors.colors_of(face, face_colors.inherit(group))
 
         assert_color(RED + [255], front, 'Front')
         assert_color(GREEN + [255], back, 'Back')
@@ -152,7 +153,7 @@ module TT::Plugins::TrueBend
         face = add_face
         face.material = material('Red', RED)
 
-        front, back = FaceColors.new(Sketchup.active_model, 0.5).colors(face)
+        front, back = FaceColors.new(Sketchup.active_model, 0.5).colors_of(face)
 
         assert_color(RED + [127], front, 'A material')
         assert_color(BACK + [127], back, 'A colour of the style')
@@ -162,7 +163,7 @@ module TT::Plugins::TrueBend
         face = add_face
         face.material = material('Glass', BLUE, 0.5)
 
-        front, = FaceColors.new(Sketchup.active_model, 0.5).colors(face)
+        front, = FaceColors.new(Sketchup.active_model, 0.5).colors_of(face)
 
         assert_color(BLUE + [63], front)
       end
@@ -172,7 +173,7 @@ module TT::Plugins::TrueBend
         face = add_face
         face.material = material('Glass', BLUE, 0.5)
 
-        front, = FaceColors.new(Sketchup.active_model, 0.5).colors(face)
+        front, = FaceColors.new(Sketchup.active_model, 0.5).colors_of(face)
 
         assert_color(BLUE + [127], front)
       end
@@ -183,9 +184,9 @@ module TT::Plugins::TrueBend
         face = add_face(group.entities)
         face.material = material('Red', RED)
         group.material = material('Green', GREEN)
-        colors = FaceColors.new(Sketchup.active_model)
+        face_colors = FaceColors.new(Sketchup.active_model)
 
-        front, back = colors.colors(face, colors.inherit(group))
+        front, back = face_colors.colors_of(face, face_colors.inherit(group))
 
         assert_color(FRONT + [255], front, 'Front')
         assert_color(BACK + [255], back, 'Back')
@@ -196,7 +197,7 @@ module TT::Plugins::TrueBend
         face = add_face
         face.material = material('Red', RED)
 
-        front, back = FaceColors.new(Sketchup.active_model).colors(face)
+        front, back = FaceColors.new(Sketchup.active_model).colors_of(face)
 
         assert_color(BACKGROUND + [255], front, 'Front')
         assert_color(BACKGROUND + [255], back, 'Back')
@@ -211,7 +212,7 @@ module TT::Plugins::TrueBend
         face.material = material('Red', RED)
         face.layer = tag
 
-        front, back = FaceColors.new(model).colors(face)
+        front, back = FaceColors.new(model).colors_of(face)
 
         assert_color(GREEN + [255], front, 'Front')
         assert_color(GREEN + [255], back, 'Back')
@@ -225,9 +226,9 @@ module TT::Plugins::TrueBend
         group = model.entities.add_group
         face = add_face(group.entities)
         group.layer = tag
-        colors = FaceColors.new(model)
+        face_colors = FaceColors.new(model)
 
-        front, = colors.colors(face, colors.inherit(group))
+        front, = face_colors.colors_of(face, face_colors.inherit(group))
 
         assert_color(GREEN + [255], front)
       end
@@ -243,9 +244,9 @@ module TT::Plugins::TrueBend
         face = add_face(group.entities)
         group.layer = group_tag
         face.layer = face_tag
-        colors = FaceColors.new(model)
+        face_colors = FaceColors.new(model)
 
-        front, = colors.colors(face, colors.inherit(group))
+        front, = face_colors.colors_of(face, face_colors.inherit(group))
 
         assert_color(BLUE + [255], front)
       end
@@ -257,9 +258,9 @@ module TT::Plugins::TrueBend
         face2 = add_face(entities.add_group.entities)
         face1.material = material('Red', RED)
         face2.material = material('Also Red', RED)
-        colors = FaceColors.new(Sketchup.active_model)
+        face_colors = FaceColors.new(Sketchup.active_model)
 
-        assert_same(colors.colors(face1)[0], colors.colors(face2)[0])
+        assert_same(face_colors.colors_of(face1)[0], face_colors.colors_of(face2)[0])
       end
 
       def test_fill_is_false_only_for_the_wireframe_style

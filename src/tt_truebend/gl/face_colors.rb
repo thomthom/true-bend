@@ -1,70 +1,79 @@
 module TT::Plugins::TrueBend
-  # The colours the style of a model gives to faces, for drawing a preview of
-  # the faces. Textures are not taken into account: a textured material gives
-  # the colour `Sketchup::Material#color` returns for it.
+  # Finds the colours that the style of a model draws faces in. Textures are
+  # ignored: a textured material gives its `Sketchup::Material#color`.
   class FaceColors
 
-    # Values of the "RenderMode" rendering option. The API documentation does
-    # not list them. They were observed in SketchUp 2027.
+    # Values of the "RenderMode" rendering option. The API documentation
+    # doesn't list them. They were observed in SketchUp 2027.
     WIREFRAME = 0
     HIDDEN_LINE = 1
     MONOCHROME = 5
 
+    # The material and the tag that the faces of an instance inherit from the
+    # instance when they have none of their own.
+    #
+    # @!attribute material
+    #   @return [Sketchup::Material, nil]
+    # @!attribute layer
+    #   @return [Sketchup::Layer, nil]
+    Inherited = Struct.new(:material, :layer)
+
     # @param [Sketchup::Model] model
-    # @param [Float] opacity The opacity to draw an opaque face with, from 0.0
-    #   to 1.0. A transparent material is drawn more transparent in proportion.
+    # @param [Float] opacity The opacity an opaque face is given, from 0.0 to
+    #   1.0. The alpha of a transparent material is multiplied by it.
     def initialize(model, opacity = 1.0)
       options = model.rendering_options
       @opacity = opacity
-      @mode = options['RenderMode']
-      @by_layer = options['DisplayColorByLayer']
-      @transparency = options['MaterialTransparency']
+      @render_mode = options['RenderMode']
+      @color_by_tag = options['DisplayColorByLayer']
+      @material_transparency = options['MaterialTransparency']
       @untagged = model.layers[0]
-      # Equal colours share one object, so that triangles can be grouped by
-      # colour with the colour as a Hash key.
-      @colors = {}
-      @sources = {}
-      @front = color(options['FaceFrontColor'])
-      @back = color(options['FaceBackColor'])
-      @background = color(options['BackgroundColor'])
+      # Equal colours are the same object, so that a colour can be used as a
+      # Hash key to group triangles by.
+      @colors_by_rgba = {}
+      @colors_by_source = {}
+      @default_front_color = shared_color(options['FaceFrontColor'])
+      @default_back_color = shared_color(options['FaceBackColor'])
+      @background_color = shared_color(options['BackgroundColor'])
     end
 
     # @return [Boolean] Whether the style fills faces.
     def fill?
-      @mode != WIREFRAME
+      @render_mode != WIREFRAME
     end
 
-    # What the faces of an instance get from the instance when they have no
-    # material or tag of their own.
-    #
     # @param [Sketchup::ComponentInstance, Sketchup::Group] instance
-    # @param [Array(Sketchup::Material, Sketchup::Layer), nil] inherited What
-    #   the instance gets from the instance it is in.
-    # @return [Array(Sketchup::Material, Sketchup::Layer)]
+    # @param [Inherited, nil] inherited What the instance inherits from the
+    #   instance it is nested in.
+    # @return [Inherited] What the faces of the instance inherit.
     def inherit(instance, inherited = nil)
-      material, layer = inherited
-      layer = instance.layer unless instance.layer == @untagged
-      [instance.material || material, layer]
+      material = instance.material || (inherited && inherited.material)
+      layer = instance.layer == @untagged ? (inherited && inherited.layer) : instance.layer
+      Inherited.new(material, layer)
     end
 
     # @param [Sketchup::Face] face
-    # @param [Array(Sketchup::Material, Sketchup::Layer), nil] inherited See
-    #   {#inherit}.
+    # @param [Inherited, nil] inherited What the face inherits from the
+    #   instance it is in.
     # @return [Array(Sketchup::Color, Sketchup::Color)] The colours of the
     #   front and the back of the face.
-    def colors(face, inherited = nil)
-      return [@background, @background] if @mode == HIDDEN_LINE
-      return [@front, @back] if @mode == MONOCHROME
+    def colors_of(face, inherited = nil)
+      return [@background_color, @background_color] if @render_mode == HIDDEN_LINE
+      return [@default_front_color, @default_back_color] if @render_mode == MONOCHROME
 
-      material, layer = inherited
-      if @by_layer
-        layer = face.layer unless layer && face.layer == @untagged
-        tag_color = (@sources[layer] ||= color(layer.color))
+      inherited ||= Inherited.new
+      if @color_by_tag
+        layer = face.layer
+        layer = inherited.layer if layer == @untagged && inherited.layer
+        tag_color = (@colors_by_source[layer] ||= shared_color(layer.color))
         return [tag_color, tag_color]
       end
-      front = face.material || material
-      back = face.back_material || material
-      [front ? material_color(front) : @front, back ? material_color(back) : @back]
+      front = face.material || inherited.material
+      back = face.back_material || inherited.material
+      [
+        front ? material_color(front) : @default_front_color,
+        back ? material_color(back) : @default_back_color,
+      ]
     end
 
     private
@@ -72,16 +81,20 @@ module TT::Plugins::TrueBend
     # @param [Sketchup::Material] material
     # @return [Sketchup::Color]
     def material_color(material)
-      @sources[material] ||= color(material.color, @transparency ? material.alpha : 1.0)
+      @colors_by_source[material] ||= begin
+        alpha = @material_transparency ? material.alpha : 1.0
+        shared_color(material.color, alpha)
+      end
     end
 
     # @param [Sketchup::Color] color
     # @param [Float] alpha
-    # @return [Sketchup::Color]
-    def color(color, alpha = 1.0)
+    # @return [Sketchup::Color] The colour with the alpha and the opacity of
+    #   the preview applied. The same object is returned for equal colours.
+    def shared_color(color, alpha = 1.0)
       # Rounding down keeps the colour from being more opaque than asked for.
       rgba = [color.red, color.green, color.blue, (255 * alpha * @opacity).floor]
-      @colors[rgba] ||= Sketchup::Color.new(*rgba)
+      @colors_by_rgba[rgba] ||= Sketchup::Color.new(*rgba)
     end
 
   end # class
